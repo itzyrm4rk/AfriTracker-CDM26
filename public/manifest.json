@@ -1,0 +1,31 @@
+{
+  "name": "AfriTracker — CdM 2026",
+  "short_name": "AfriTracker",
+  "description": "Suivez les équipes africaines à la Coupe du Monde FIFA 2026 en temps réel.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#080C10",
+  "theme_color": "#1B5E20",
+  "orientation": "portrait-primary",
+  "lang": "fr",
+  "categories": ["sports", "news"],
+  "icons": [
+    {
+      "src": "/icons/icon-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icons/icon-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "shortcuts": [
+    { "name": "Dashboard", "url": "/", "description": "Scores live et matchs du jour" },
+    { "name": "Calendrier", "url": "/calendar", "description": "Calendrier complet des matchs" },
+    { "name": "Bracket", "url": "/bracket", "description": "Arbre de la compétition" }
+  ]
+}

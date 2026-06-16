@@ -1,0 +1,117 @@
+@import "tailwindcss";
+
+:root {
+  --color-primary: #1B5E20;
+  --color-primary-light: #4CAF50;
+  --color-gold: #F9A825;
+  --color-gold-light: #FFD54F;
+  --color-live: #D32F2F;
+  --color-live-glow: #FF5252;
+  --color-bg: #080C10;
+  --color-surface: #111820;
+  --color-surface-2: #1A2332;
+  --color-surface-3: #243040;
+  --color-border: #1E2D3D;
+  --color-text: #F0F4F8;
+  --color-text-muted: #64748B;
+  --color-success: #22C55E;
+  --color-eliminated: #374151;
+  --color-primary-content: #ffffff;
+}
+
+@theme inline {
+  --color-primary: var(--color-primary);
+  --color-primary-light: var(--color-primary-light);
+  --color-gold: var(--color-gold);
+  --color-gold-light: var(--color-gold-light);
+  --color-live: var(--color-live);
+  --color-live-glow: var(--color-live-glow);
+  --color-bg: var(--color-bg);
+  --color-surface: var(--color-surface);
+  --color-surface-2: var(--color-surface-2);
+  --color-surface-3: var(--color-surface-3);
+  --color-border: var(--color-border);
+  --color-text: var(--color-text);
+  --color-text-muted: var(--color-text-muted);
+  --color-success: var(--color-success);
+  --color-eliminated: var(--color-eliminated);
+  --color-primary-content: var(--color-primary-content);
+
+  --font-display: var(--font-display);
+  --font-body: var(--font-body);
+
+  --animate-pulse-live: pulse-live 1.5s infinite;
+  --animate-fade-in: fade-in 0.4s ease-out;
+
+  @keyframes pulse-live {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.7; transform: scale(1.1); }
+  }
+
+  @keyframes fade-in {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-family: var(--font-body, system-ui, sans-serif);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-display, system-ui, sans-serif);
+}
+
+.card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 0.75rem;
+  padding: 1rem;
+  transition: background-color 0.2s;
+}
+
+.card:hover {
+  background: var(--color-surface-2);
+}
+
+.flex-center {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.flex-between {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.animate-fade-in {
+  animation: fade-in 0.4s ease-out;
+}
+
+/* Scrollbar dark */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: var(--color-bg);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--color-border);
+  border-radius: 3px;
+}
+
+/* Safe area for mobile */
+.pb-safe {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
