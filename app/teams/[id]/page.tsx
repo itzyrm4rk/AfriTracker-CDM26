@@ -71,7 +71,13 @@ export default async function TeamDetailPage({ params, searchParams }: Props) {
       {/* Hero */}
       <div className="flex flex-col items-center justify-center text-center mb-10 pt-4">
         {team.isEliminated && <EliminatedBanner phase={team.eliminatedAt || "Phase inconnue"} />}
-        <span className="text-8xl sm:text-9xl drop-shadow-2xl mb-6">{team.flag}</span>
+        <div className="flex items-center justify-center h-32 sm:h-40 drop-shadow-2xl mb-6">
+          {team.flagUrl ? (
+            <img src={team.flagUrl} alt={team.name} className="max-h-full object-contain" />
+          ) : (
+            <span className="text-8xl sm:text-9xl">{team.flag}</span>
+          )}
+        </div>
         <h1
           className="text-4xl sm:text-5xl font-black mb-2"
           style={{ fontFamily: "var(--font-display)" }}

@@ -46,11 +46,15 @@ export default function TeamCard({ team, index }: Props) {
           )}
 
           <div className="flex-1 flex flex-col items-center justify-center py-6">
-            <span
-              className="text-6xl sm:text-7xl mb-4 transition-transform duration-300 drop-shadow-lg group-hover:scale-110"
+            <div
+              className="flex items-center justify-center mb-4 transition-transform duration-300 drop-shadow-lg group-hover:scale-110 h-16 w-24 sm:h-20 sm:w-28"
             >
-              {team.flag}
-            </span>
+              {team.flagUrl ? (
+                <img src={team.flagUrl} alt={team.name} className="max-h-full max-w-full object-contain" loading="lazy" />
+              ) : (
+                <span className="text-6xl sm:text-7xl">{team.flag}</span>
+              )}
+            </div>
             <h3
               className="font-bold text-lg sm:text-xl text-center px-2 line-clamp-1"
               style={{ fontFamily: "var(--font-display)" }}

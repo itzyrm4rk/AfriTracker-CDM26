@@ -52,6 +52,8 @@ export const metadata: Metadata = {
   },
 }
 
+import PWAInstall from "@/components/PWAInstall"
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -64,6 +66,7 @@ export default function RootLayout({
     >
       <body className="min-h-full flex flex-col bg-[var(--color-bg)] text-[var(--color-text)]">
         <Toaster position="top-center" theme="dark" richColors />
+        <PWAInstall />
         <OnboardingGuard>{children}</OnboardingGuard>
       </body>
     </html>

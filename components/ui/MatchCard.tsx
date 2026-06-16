@@ -114,25 +114,25 @@ export default function MatchCard({ match }: Props) {
     >
       {/* Top bar */}
       <div
-        className="flex justify-between items-center mb-4 text-xs"
+        className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 text-xs gap-3 sm:gap-0"
         style={{ color: "var(--color-text-muted)" }}
       >
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
           <span className="font-semibold uppercase tracking-wider" style={{ color: "var(--color-text)" }}>
             {match.phase}
           </span>
-          <span>•</span>
-          <span className="flex items-center gap-1 truncate max-w-[120px] sm:max-w-[200px]">
-            <MapPin size={12} />
+          <span className="hidden sm:inline">•</span>
+          <span className="flex items-center gap-1 truncate max-w-[160px] sm:max-w-[200px]">
+            <MapPin size={12} className="shrink-0" />
             <span className="truncate">{match.stadium.name}, {match.stadium.city}</span>
           </span>
-          <span>•</span>
-          <span style={{ color: "var(--color-text-muted)" }}>
+          <span className="hidden sm:inline">•</span>
+          <span className="flex items-center gap-1" style={{ color: "var(--color-text-muted)" }}>
             📅 {formatFullDate(match.date)}
           </span>
         </div>
 
-        <div>
+        <div className="flex items-center gap-2 self-end sm:self-auto">
           {isLive && <LiveBadge />}
           {isFinished && (
             <span
@@ -153,12 +153,16 @@ export default function MatchCard({ match }: Props) {
       <div className="flex items-center justify-between mb-2">
         {/* Home */}
         <div className="flex-1 flex flex-col items-center gap-2">
-          <span
-            className="text-4xl sm:text-5xl drop-shadow-md"
+          <div
+            className="flex items-center justify-center drop-shadow-md h-12 w-16 sm:h-16 sm:w-20"
             style={{ filter: match.homeTeam.isEliminated ? "grayscale(1)" : undefined, opacity: match.homeTeam.isEliminated ? 0.5 : 1 }}
           >
-            {match.homeTeam.flag}
-          </span>
+            {match.homeTeam.flagUrl ? (
+              <img src={match.homeTeam.flagUrl} alt={match.homeTeam.name} className="max-h-full max-w-full object-contain" loading="lazy" />
+            ) : (
+              <span className="text-4xl sm:text-5xl">{match.homeTeam.flag}</span>
+            )}
+          </div>
           <span className="font-bold text-sm sm:text-base text-center line-clamp-1">
             {match.homeTeam.name}
           </span>
@@ -202,12 +206,16 @@ export default function MatchCard({ match }: Props) {
 
         {/* Away */}
         <div className="flex-1 flex flex-col items-center gap-2">
-          <span
-            className="text-4xl sm:text-5xl drop-shadow-md"
+          <div
+            className="flex items-center justify-center drop-shadow-md h-12 w-16 sm:h-16 sm:w-20"
             style={{ filter: match.awayTeam.isEliminated ? "grayscale(1)" : undefined, opacity: match.awayTeam.isEliminated ? 0.5 : 1 }}
           >
-            {match.awayTeam.flag}
-          </span>
+            {match.awayTeam.flagUrl ? (
+              <img src={match.awayTeam.flagUrl} alt={match.awayTeam.name} className="max-h-full max-w-full object-contain" loading="lazy" />
+            ) : (
+              <span className="text-4xl sm:text-5xl">{match.awayTeam.flag}</span>
+            )}
+          </div>
           <span className="font-bold text-sm sm:text-base text-center line-clamp-1">
             {match.awayTeam.name}
           </span>
