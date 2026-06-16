@@ -57,7 +57,7 @@ export default function OnboardingSplash({ onNext }: Props) {
         </motion.p>
       </div>
 
-      <div className="h-32 relative overflow-hidden flex items-center">
+      <div className="h-20 sm:h-32 relative overflow-hidden flex items-center shrink-0">
         <div
           className="absolute left-0 top-0 bottom-0 w-16 z-10"
           style={{ background: "linear-gradient(to right, var(--color-bg), transparent)" }}
@@ -75,23 +75,23 @@ export default function OnboardingSplash({ onNext }: Props) {
           {marqueeFlags.map((team, index) => (
             <div key={`${team.id}-${index}`} className="flex flex-col items-center gap-2 opacity-60">
               <span
-                className="text-4xl transition-all hover:opacity-100 cursor-default"
+                className="text-3xl sm:text-4xl transition-all hover:opacity-100 cursor-default"
                 style={{ filter: "grayscale(1)" }}
               >
-                {team.flag}
+                {team.flagUrl ? <img src={team.flagUrl} alt="" className="h-8 object-contain" /> : team.flag}
               </span>
             </div>
           ))}
         </motion.div>
       </div>
 
-      <div className="p-6 flex justify-center pb-safe relative z-10">
+      <div className="p-4 sm:p-6 flex justify-center pb-8 sm:pb-safe relative z-10 shrink-0">
         <motion.button
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, delay: 1 }}
           onClick={onNext}
-          className="w-full max-w-md font-bold py-4 px-8 rounded-full transition-colors outline-none text-white"
+          className="w-full max-w-md font-bold py-4 px-8 rounded-full transition-colors outline-none text-white shadow-lg active:scale-95"
           style={{ background: "var(--color-primary)" }}
         >
           Commencer l&apos;aventure

@@ -267,7 +267,7 @@ export default function MatchCard({ match }: Props) {
               color: "var(--color-text-muted)",
             }}
           >
-            <CalendarPlus size={13} /> 🍎 Apple
+            <CalendarPlus size={13} /> Apple
           </button>
         </div>
       )}
