@@ -268,13 +268,32 @@ function mapRawGame(g: any, stadiumsMap: Record<string, Stadium>): Match | null 
 
     const stadium = stadiumsMap[g.stadium_id] || buildStadium({ name: "Unknown Stadium" })
 
-    const status = mapStatus(g.finished, g.time_elapsed)
+    const dateStr = parseDateUTC(g.local_date, g.stadium_id, stadiumsMap)
+    let status = mapStatus(g.finished, g.time_elapsed)
     const phase = mapPhase(g.type || "group", g.group || "")
-
     let minute = null
+
     if (status === "live" && g.time_elapsed !== "notstarted" && g.time_elapsed !== "finished") {
       const parsed = parseInt(g.time_elapsed)
       if (!isNaN(parsed)) minute = parsed
+    }
+
+    // SIMULATION LIVE (Si l'API distante ne répond pas et qu'on utilise le fallback JSON statique)
+    // On compare l'heure actuelle avec l'heure prévue du match.
+    if (status === "scheduled") {
+      const now = new Date()
+      const matchDate = new Date(dateStr)
+      const diffMinutes = Math.floor((now.getTime() - matchDate.getTime()) / 60000)
+      
+      if (diffMinutes >= 0 && diffMinutes <= 120) {
+        status = "live"
+        // Simulation grossière de la minute (en incluant 15 min de mi-temps)
+        minute = diffMinutes > 45 ? diffMinutes - 15 : diffMinutes
+        if (minute < 0) minute = 0
+        if (minute > 90) minute = 90
+      } else if (diffMinutes > 120) {
+        status = "finished"
+      }
     }
 
     return {
@@ -283,7 +302,7 @@ function mapRawGame(g: any, stadiumsMap: Record<string, Stadium>): Match | null 
       awayTeam,
       homeScore: parseScore(g.home_score),
       awayScore: parseScore(g.away_score),
-      date: parseDateUTC(g.local_date, g.stadium_id, stadiumsMap),
+      date: dateStr,
       stadium,
       phase,
       status,
