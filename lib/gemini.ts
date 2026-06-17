@@ -1,13 +1,13 @@
 import type { Match } from "@/types"
 
 const GEMINI_API_URL =
-  "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent"
+  "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent"
 
 export async function generateMomentum(matchesOfTheDay: Match[]): Promise<string | null> {
   const apiKey = process.env.GEMINI_API_KEY
   if (!apiKey) {
     console.error("GEMINI_API_KEY is not defined")
-    return null
+    throw new Error("GEMINI_API_KEY is not defined")
   }
 
   const africanMatches = matchesOfTheDay.filter(
@@ -42,16 +42,22 @@ Ne mets pas d'introduction du style "Voici le momentum :" ou "Salut !". Commence
     })
 
     if (!res.ok) {
-      console.error("Gemini API error:", await res.text())
-      return null
+      const errorText = await res.text()
+      console.error("Gemini API error status:", res.status, errorText)
+      throw new Error(`Gemini API Error: ${res.status} - ${errorText}`)
     }
 
     const data = await res.json()
     const text = data.candidates?.[0]?.content?.parts?.[0]?.text
 
-    return text ? text.trim() : null
-  } catch (error) {
+    if (!text) {
+      console.error("Gemini response missing text:", JSON.stringify(data))
+      throw new Error("Gemini response missing text")
+    }
+
+    return text.trim()
+  } catch (error: any) {
     console.error("Error calling Gemini API:", error)
-    return null
+    throw error
   }
 }

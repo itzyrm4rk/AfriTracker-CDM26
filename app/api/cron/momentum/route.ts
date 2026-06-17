@@ -49,9 +49,9 @@ async function handleMomentumGeneration() {
     }
 
     return NextResponse.json({ success: true, message: "Aucun match africain prévu aujourd'hui." })
-  } catch (error) {
+  } catch (error: any) {
     console.error("Cron Momentum Error:", error)
-    return NextResponse.json({ error: "Internal Server Error" }, { status: 500 })
+    return NextResponse.json({ success: false, error: error.message || "Internal Server Error" }, { status: 500 })
   }
 }
 
