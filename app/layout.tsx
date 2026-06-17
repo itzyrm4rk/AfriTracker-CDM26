@@ -39,7 +39,6 @@ export const metadata: Metadata = {
     title: "AfriTracker",
   },
   icons: {
-    icon: "/favicon.ico",
     apple: "/icons/apple-touch-icon.png",
   },
   openGraph: {

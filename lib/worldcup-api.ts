@@ -162,9 +162,23 @@ export async function fetchAllMatches(): Promise<Match[]> {
     fetchStadiumsMap()
   ])
 
-  if (!gamesRes || !gamesRes.games) return []
+  let games = gamesRes?.games
 
-  return gamesRes.games.map(g => mapRawGame(g, stadiumsMap)).filter(Boolean) as Match[]
+  // FALLBACK LOGIC : Graceful Degradation
+  if (!games) {
+    console.warn("⚠️ WorldCup API indisponible. Utilisation du calendrier de secours (Fallback).")
+    try {
+      const fallbackData = require("@/data/fallback-games.json")
+      games = fallbackData.games
+    } catch (e) {
+      console.error("Impossible de charger le fallback des matchs", e)
+      return []
+    }
+  }
+
+  if (!games) return []
+
+  return games.map((g: any) => mapRawGame(g, stadiumsMap)).filter(Boolean) as Match[]
 }
 
 export async function fetchMatchesByDate(date: string): Promise<Match[]> {
