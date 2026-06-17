@@ -47,12 +47,12 @@ function buildUnknownTeam(idOrName: string): Team {
 /** Mappe le statut de l'API vers notre MatchStatus */
 function mapStatus(finished: string, timeElapsed: string): MatchStatus {
   if (finished === "TRUE") return "finished"
-  
+
   const elapsed = (timeElapsed || "").toLowerCase()
   if (elapsed === "notstarted") return "scheduled"
   if (elapsed === "finished") return "finished"
   if (elapsed === "postponed" || elapsed === "cancelled") return "postponed"
-  
+
   // S'il y a un temps écoulé (ex: "45", "HT", "90+2"), c'est en cours
   return "live"
 }
@@ -100,7 +100,7 @@ export async function fetchStadiumsMap(): Promise<Record<string, Stadium>> {
       capacity: s.capacity || 0
     }
   })
-  
+
   cachedStadiums = map
   return map
 }
@@ -161,7 +161,7 @@ export async function fetchAllMatches(): Promise<Match[]> {
     apiFetch<{ games: any[] }>("/get/games"),
     fetchStadiumsMap()
   ])
-  
+
   if (!gamesRes || !gamesRes.games) return []
 
   return gamesRes.games.map(g => mapRawGame(g, stadiumsMap)).filter(Boolean) as Match[]
@@ -190,7 +190,7 @@ function parseDateUTC(dateStr: string, stadiumId: string, stadiumsMap: Record<st
     const [datePart, timePart] = dateStr.split(' ')
     const [month, day, year] = datePart.split('/')
     const [hours, minutes] = timePart.split(':')
-    
+
     // Déterminer le fuseau horaire en fonction de la région du stade
     let offsetHours = -4; // Par défaut EDT (Eastern Daylight Time)
     const rawStadium = stadiumsMap[stadiumId] as any; // Cast car on a besoin de la region brute 
@@ -226,7 +226,7 @@ function mapRawGame(g: any, stadiumsMap: Record<string, Stadium>): Match | null 
     // Si l'équipe est "0", c'est un match TBD (ex: "Winner Match 86")
     let homeTeam: Team
     let awayTeam: Team
-    
+
     if (g.home_team_id === "0") {
       homeTeam = buildUnknownTeam(g.home_team_label || "TBD")
     } else {
@@ -242,7 +242,7 @@ function mapRawGame(g: any, stadiumsMap: Record<string, Stadium>): Match | null 
     }
 
     const stadium = stadiumsMap[g.stadium_id] || buildStadium({ name: "Unknown Stadium" })
-    
+
     const status = mapStatus(g.finished, g.time_elapsed)
     const phase = mapPhase(g.type || "group", g.group || "")
 
@@ -289,7 +289,7 @@ function mapPhase(type: string, groupRaw: string): string {
   if (t === "qf") return "Quarts de Finale"
   if (t === "r16") return "1/16 de Finale" // 16 équipes restantes -> Huitièmes
   if (t === "r32") return "1/32 de Finale" // 32 équipes restantes -> Seizièmes
-  
+
   if (t === "group" || groupRaw) {
     return `Groupe ${groupRaw.replace("Group", "").trim().toUpperCase()}`
   }
@@ -309,7 +309,7 @@ function mapRawGroup(g: any): Group | null {
   try {
     const name = g.name || "?"
     const teams: Standing[] = (g.teams || []).map((s: any, i: number) => {
-      
+
       const localData = getTeamByApiId(s.team_id)
       const team = localData ? buildTeamFromData(localData) : buildUnknownTeam(s.team_id)
 

@@ -75,17 +75,17 @@ export default function OnboardingSplash({ onNext }: Props) {
           {marqueeFlags.map((team, index) => (
             <div key={`${team.id}-${index}`} className="flex flex-col items-center gap-2 opacity-60">
               <span
-                className="text-3xl sm:text-4xl transition-all hover:opacity-100 cursor-default"
+                className="text-3xl sm:text-4xl transition-all hover:opacity-100 cursor-default flex items-center justify-center w-12 h-8"
                 style={{ filter: "grayscale(1)" }}
               >
-                {team.flagUrl ? <img src={team.flagUrl} alt="" className="h-8 object-contain" /> : team.flag}
+                {team.flagUrl ? <img src={team.flagUrl} alt="" className="w-12 h-8 object-contain" /> : team.flag}
               </span>
             </div>
           ))}
         </motion.div>
       </div>
 
-      <div className="p-4 sm:p-6 flex justify-center pb-8 sm:pb-safe relative z-10 shrink-0">
+      <div className="p-4 sm:p-6 flex justify-center pb-16 sm:pb-safe relative z-10 shrink-0">
         <motion.button
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
