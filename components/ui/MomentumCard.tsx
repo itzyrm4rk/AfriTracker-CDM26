@@ -11,7 +11,7 @@ export default function MomentumCard() {
 
   const handleShare = async () => {
     if (!momentum) return
-    const textToShare = `🌍 Momentum CdM 2026 :\n\n${momentum.text}\n\nVia AfriTracker`
+    const textToShare = `🌍 Momentum CdM 2026 :\n\n${momentum.text}\n\nVia AfriTracker\nhttps://afri-tracker-cdm-26.vercel.app/`
     if (navigator.share) {
       try {
         await navigator.share({ title: "AfriTracker Momentum", text: textToShare })

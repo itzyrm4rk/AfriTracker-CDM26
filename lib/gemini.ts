@@ -25,7 +25,7 @@ Aujourd'hui, les matchs suivants impliquant des équipes africaines vont se joue
 Génère un court "Momentum du jour" (3 ou 4 phrases maximum) pour chauffer les supporters africains.
 Ce momentum doit :
 1. Parler EXCLUSIVEMENT de l'enjeu et du contexte des matchs d'aujourd'hui. Ne fais pas d'historique généraliste.
-2. Rappeler une anecdote historique glorieuse, une statistique impressionnante.
+2. Rappeler une anecdote historique glorieuse, une statistique impressionnante en général à la Coupe du Monde.
 3. RÈGLE ABSOLUE ANTI-HALLUCINATION : N'invente AUCUNE statistique ni aucun fait sur le tournoi en cours.
 4. Être très enthousiaste, utiliser des emojis, et être formaté sans markdown complexe (juste du texte simple).
 
