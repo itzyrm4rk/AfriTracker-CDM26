@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server"
 import { generateMomentum } from "@/lib/gemini"
+import { getTodayDateInAfrica, isMatchOnAfricanDate } from "@/lib/timezone"
 
 // Mise en cache globale native sur Vercel (6 heures)
 export const revalidate = 21600 
@@ -9,16 +10,13 @@ export async function GET() {
     const { fetchAllMatches } = await import("@/lib/worldcup-api")
     const allMatches = await fetchAllMatches()
     
-    // Fenêtre : de -12h (pour inclure les matchs live) à +24h maximum
-    const now = new Date()
-    const startTime = new Date(now.getTime() - 12 * 60 * 60 * 1000).toISOString()
-    const endTime = new Date(now.getTime() + 24 * 60 * 60 * 1000).toISOString()
+    // Jour calendaire strict basé sur le fuseau Africa/Douala (UTC+1)
+    const todayAfrica = getTodayDateInAfrica()
 
     const africanMatches = allMatches.filter(m => 
       (m.homeTeam.isAfrican || m.awayTeam.isAfrican) &&
       m.status !== "finished" &&
-      m.date >= startTime &&
-      m.date <= endTime
+      isMatchOnAfricanDate(m.date, todayAfrica)
     )
 
     if (africanMatches.length > 0) {
@@ -27,7 +25,7 @@ export async function GET() {
         return NextResponse.json({
           momentum: {
             text: momentumText,
-            date: new Date().toISOString().split("T")[0],
+            date: todayAfrica,
             matchesOfTheDay: africanMatches.map(m => `${m.homeTeam.name} vs ${m.awayTeam.name}`)
           }
         })
@@ -40,3 +38,4 @@ export async function GET() {
     return NextResponse.json({ momentum: null })
   }
 }
+

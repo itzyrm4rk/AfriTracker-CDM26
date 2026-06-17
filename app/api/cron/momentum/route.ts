@@ -1,6 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server"
-import { fetchMatchesByDate } from "@/lib/worldcup-api"
 import { generateMomentum } from "@/lib/gemini"
+import { getTodayDateInAfrica, isMatchOnAfricanDate } from "@/lib/timezone"
 
 function isAuthorized(request: NextRequest) {
   const authHeader = request.headers.get("authorization")
@@ -8,21 +8,17 @@ function isAuthorized(request: NextRequest) {
 }
 
 async function handleMomentumGeneration() {
-  const today = new Date().toISOString().split("T")[0]
-
   try {
     const { fetchAllMatches } = await import("@/lib/worldcup-api")
     const allMatches = await fetchAllMatches()
     
-    // On veut les matchs qui se jouent "aujourd'hui" (fenêtre de -12h à +36h pour couvrir les fuseaux américains)
-    const now = new Date()
-    const startTime = new Date(now.getTime() - 12 * 60 * 60 * 1000).toISOString()
-    const endTime = new Date(now.getTime() + 36 * 60 * 60 * 1000).toISOString()
+    // Jour calendaire strict basé sur le fuseau Africa/Douala (UTC+1)
+    const todayAfrica = getTodayDateInAfrica()
 
-    const matchesOfTheDay = allMatches.filter(m => m.date >= startTime && m.date <= endTime)
-
-    const africanMatches = matchesOfTheDay.filter(
-      m => m.homeTeam.isAfrican || m.awayTeam.isAfrican
+    const africanMatches = allMatches.filter(m =>
+      (m.homeTeam.isAfrican || m.awayTeam.isAfrican) &&
+      m.status !== "finished" &&
+      isMatchOnAfricanDate(m.date, todayAfrica)
     )
 
     if (africanMatches.length > 0) {
@@ -31,15 +27,10 @@ async function handleMomentumGeneration() {
       if (momentumText) {
         const momentumData = {
           text: momentumText,
-          date: today,
+          date: todayAfrica,
           matchesOfTheDay: africanMatches.map(
             m => `${m.homeTeam.name} vs ${m.awayTeam.name}`
           ),
-        }
-
-        if (process.env.KV_REST_API_URL?.startsWith("https://") && process.env.KV_REST_API_TOKEN) {
-          const { kv } = await import("@vercel/kv")
-          await kv.set(`momentum:${today}`, momentumData, { ex: 86400 })
         }
 
         return NextResponse.json({ success: true, momentum: momentumData })
