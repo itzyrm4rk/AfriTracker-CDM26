@@ -60,11 +60,17 @@ function mapStatus(finished: string, timeElapsed: string): MatchStatus {
 // ─── Fetch principal ─────────────────────────────────────────────────────────
 
 async function apiFetch<T>(path: string): Promise<T | null> {
+  const controller = new AbortController()
+  const timeoutId = setTimeout(() => controller.abort(), 5000)
+
   try {
     const res = await fetch(`${BASE_URL}${path}`, {
       headers: getAuthHeaders(),
       next: { revalidate: 60 }, // cache 60s
+      signal: controller.signal
     })
+
+    clearTimeout(timeoutId)
 
     if (!res.ok) {
       console.error(`WorldCup API error ${res.status} for ${path}`)
@@ -73,8 +79,13 @@ async function apiFetch<T>(path: string): Promise<T | null> {
 
     const json = await res.json()
     return json as T
-  } catch (err) {
-    console.error(`WorldCup API fetch error for ${path}:`, err)
+  } catch (err: any) {
+    clearTimeout(timeoutId)
+    if (err.name === 'AbortError') {
+      console.warn(`⏳ Timeout de 5s dépassé pour ${path} - L'API distante ne répond pas.`)
+    } else {
+      console.error(`WorldCup API fetch error for ${path}:`, err.message)
+    }
     return null
   }
 }
