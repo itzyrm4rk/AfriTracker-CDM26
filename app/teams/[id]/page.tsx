@@ -7,28 +7,26 @@ import MatchCard from "@/components/ui/MatchCard"
 import Pagination from "@/components/ui/Pagination"
 import type { Match, Group } from "@/types"
 
+import { fetchAllMatches, fetchStandings } from "@/lib/worldcup-api"
+
 async function getTeamMatches(teamName: string): Promise<Match[]> {
-  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000"
   try {
-    const res = await fetch(`${baseUrl}/api/matches`, { next: { revalidate: 60 } })
-    if (!res.ok) return []
-    const allMatches: Match[] = await res.json()
+    const allMatches = await fetchAllMatches()
     return allMatches.filter(
       m => m.homeTeam.name === teamName || m.awayTeam.name === teamName
     )
-  } catch {
+  } catch (error) {
+    console.error("Error fetching team matches:", error)
     return []
   }
 }
 
 async function getGroupStanding(groupLetter: string): Promise<Group | null> {
-  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000"
   try {
-    const res = await fetch(`${baseUrl}/api/standings`, { next: { revalidate: 120 } })
-    if (!res.ok) return null
-    const standings: Group[] = await res.json()
+    const standings = await fetchStandings()
     return standings.find(g => g.name === groupLetter) ?? null
-  } catch {
+  } catch (error) {
+    console.error("Error fetching group standing:", error)
     return null
   }
 }
