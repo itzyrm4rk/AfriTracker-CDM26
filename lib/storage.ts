@@ -36,13 +36,37 @@ export function isOnboardingDone(): boolean {
 }
 
 export function isMomentumSeenToday(): boolean {
+  if (typeof window === "undefined") return true
+  const date = localStorage.getItem("momentum_seen_date")
   const today = new Date().toISOString().split("T")[0]
-  return getStorageData().momentum_seen_date === today
+  return date === today
 }
 
-export function markMomentumSeen(): void {
-  const today = new Date().toISOString().split("T")[0]
-  setStorageData({ momentum_seen_date: today })
+export function markMomentumSeen() {
+  if (typeof window !== "undefined") {
+    const today = new Date().toISOString().split("T")[0]
+    localStorage.setItem("momentum_seen_date", today)
+  }
+}
+
+export function getCachedMomentum(): any {
+  if (typeof window === "undefined") return null
+  try {
+    const cached = localStorage.getItem("momentum_data")
+    if (!cached) return null
+    const parsed = JSON.parse(cached)
+    const today = new Date().toISOString().split("T")[0]
+    if (parsed.date === today) return parsed
+    return null
+  } catch {
+    return null
+  }
+}
+
+export function saveCachedMomentum(momentum: any) {
+  if (typeof window !== "undefined" && momentum) {
+    localStorage.setItem("momentum_data", JSON.stringify(momentum))
+  }
 }
 
 export type { StorageData }

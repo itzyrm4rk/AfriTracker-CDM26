@@ -9,13 +9,17 @@ export async function GET() {
     const { fetchAllMatches } = await import("@/lib/worldcup-api")
     const allMatches = await fetchAllMatches()
     
-    // Fenêtre de -12h à +36h
+    // Fenêtre : de -12h (pour inclure les matchs live) à +24h maximum
     const now = new Date()
     const startTime = new Date(now.getTime() - 12 * 60 * 60 * 1000).toISOString()
-    const endTime = new Date(now.getTime() + 36 * 60 * 60 * 1000).toISOString()
+    const endTime = new Date(now.getTime() + 24 * 60 * 60 * 1000).toISOString()
 
-    const matchesOfTheDay = allMatches.filter(m => m.date >= startTime && m.date <= endTime)
-    const africanMatches = matchesOfTheDay.filter(m => m.homeTeam.isAfrican || m.awayTeam.isAfrican)
+    const africanMatches = allMatches.filter(m => 
+      (m.homeTeam.isAfrican || m.awayTeam.isAfrican) &&
+      m.status !== "finished" &&
+      m.date >= startTime &&
+      m.date <= endTime
+    )
 
     if (africanMatches.length > 0) {
       const momentumText = await generateMomentum(africanMatches)
