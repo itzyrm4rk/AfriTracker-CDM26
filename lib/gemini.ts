@@ -24,9 +24,9 @@ Aujourd'hui, les matchs suivants impliquant des équipes africaines vont se joue
 
 Génère un court "Momentum du jour" (3 ou 4 phrases maximum) pour chauffer les supporters africains.
 Ce momentum doit :
-1. Rappeler une anecdote historique glorieuse, une statistique impressionnante, ou un contexte épique concernant l'une de ces équipes africaines ou le football africain en général à la Coupe du Monde.
-2. RÈGLE ABSOLUE ANTI-HALLUCINATION : N'invente AUCUNE statistique ni aucun fait. Tu dois te baser EXCLUSIVEMENT sur l'histoire réelle et vérifiable de la FIFA. Si tu n'es pas sûr à 100% d'un fait historique, ne l'utilise pas et concentre-toi uniquement sur l'enjeu du match d'aujourd'hui.
-3. Faire le lien avec le(s) match(s) du jour pour créer de l'excitation.
+1. Faire mention de TOUTES les équipes africaines qui jouent aujourd'hui pour ne froisser aucun supporter.
+2. Rappeler une anecdote historique glorieuse ou une statistique impressionnante pour au moins l'une de ces équipes.
+3. RÈGLE ABSOLUE ANTI-HALLUCINATION : N'invente AUCUNE statistique ni aucun fait. Base-toi EXCLUSIVEMENT sur l'histoire réelle et vérifiable de la FIFA.
 4. Être très enthousiaste, utiliser des emojis, et être formaté sans markdown complexe (juste du texte simple).
 
 Ne mets pas d'introduction du style "Voici le momentum :" ou "Salut !". Commence directement par l'anecdote.`
