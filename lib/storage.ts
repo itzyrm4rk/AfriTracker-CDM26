@@ -8,7 +8,7 @@ interface StorageData {
 }
 
 const DEFAULT_STORAGE: StorageData = {
-  african_teams: ["MAR", "SEN", "ALG", "EGY", "CIV", "GHA", "TUN", "ZAF", "CPV", "COD"],
+  african_teams: ["MAR", "SEN", "ALG", "EGY", "CIV", "GHA", "TUN", "RSA", "CPV", "COD"],
   extra_teams: [],
   onboarding_done: false,
   momentum_seen_date: null,

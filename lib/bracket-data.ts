@@ -20,7 +20,7 @@ export interface BracketRound {
   matches: BracketMatch[]
 }
 
-const AFRICAN_CODES = ["ZAF", "MAR", "CIV", "TUN", "EGY", "CPV", "SEN", "ALG", "COD", "GHA"]
+const AFRICAN_CODES = ["RSA", "MAR", "CIV", "TUN", "EGY", "CPV", "SEN", "ALG", "COD", "GHA"]
 
 export function getBracketRounds(): BracketRound[] {
   const r32: BracketMatch[] = [

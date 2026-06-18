@@ -12,9 +12,11 @@ import { fetchAllMatches, fetchStandings } from "@/lib/worldcup-api"
 async function getTeamMatches(teamName: string): Promise<Match[]> {
   try {
     const allMatches = await fetchAllMatches()
-    return allMatches.filter(
-      m => m.homeTeam.name === teamName || m.awayTeam.name === teamName
-    )
+    return allMatches
+      .filter(
+        m => m.homeTeam.name === teamName || m.awayTeam.name === teamName
+      )
+      .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
   } catch (error) {
     console.error("Error fetching team matches:", error)
     return []
