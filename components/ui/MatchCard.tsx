@@ -181,6 +181,14 @@ export default function MatchCard({ match }: Props) {
             >
               {formatHour(match.date)}
             </div>
+          ) : match.isDataPending ? (
+            <div className="flex flex-col items-center">
+              <div className="flex items-center gap-3 text-3xl sm:text-4xl font-bold" style={{ fontFamily: "var(--font-display)" }}>
+                <span style={{ color: "var(--color-text-muted)" }}>-</span>
+                <span style={{ color: "rgba(100,116,139,0.5)", fontSize: "1.25rem" }}>-</span>
+                <span style={{ color: "var(--color-text-muted)" }}>-</span>
+              </div>
+            </div>
           ) : (
             <>
               <div className="flex items-center gap-3 text-3xl sm:text-4xl font-bold" style={{ fontFamily: "var(--font-display)" }}>
@@ -269,6 +277,20 @@ export default function MatchCard({ match }: Props) {
           >
             <CalendarPlus size={13} /> Apple
           </button>
+        </div>
+      )}
+
+      {/* Data Pending Warning */}
+      {match.isDataPending && (
+        <div
+          className="mt-3 py-1.5 text-center text-[10px] sm:text-xs font-semibold rounded-md"
+          style={{
+            background: "rgba(249,168,37,0.1)",
+            color: "var(--color-gold)",
+            border: "1px solid rgba(249,168,37,0.2)",
+          }}
+        >
+          Scores momentanément indisponibles
         </div>
       )}
     </div>

@@ -27,10 +27,12 @@ export function useUpcomingMatches() {
   const now = new Date()
 
   return {
-    upcomingMatches: (data ?? []).filter(m => {
-      const matchDate = new Date(m.date)
-      return m.status === "scheduled" && matchDate > now
-    }),
+    upcomingMatches: (data ?? [])
+      .filter(m => {
+        const matchDate = new Date(m.date)
+        return m.status === "scheduled" && matchDate > now
+      })
+      .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()),
     allMatches: data ?? [],
     isLoading,
     error,

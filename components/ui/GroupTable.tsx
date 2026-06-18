@@ -30,6 +30,19 @@ export default function GroupTable({ group, highlightTeam, detailed = false }: P
         )}
       </div>
 
+      {group.isDataPending && (
+        <div
+          className="mx-4 mb-2 py-1 px-2 text-center text-[10px] sm:text-xs font-semibold rounded"
+          style={{
+            background: "rgba(249,168,37,0.1)",
+            color: "var(--color-gold)",
+            border: "1px solid rgba(249,168,37,0.2)",
+          }}
+        >
+          Classement momentanément non actualisé
+        </div>
+      )}
+
       <div className="overflow-x-auto">
         <table className="w-full text-xs">
           <thead>

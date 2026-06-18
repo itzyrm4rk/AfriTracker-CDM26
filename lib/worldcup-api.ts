@@ -272,6 +272,7 @@ function mapRawGame(g: any, stadiumsMap: Record<string, Stadium>): Match | null 
     let status = mapStatus(g.finished, g.time_elapsed)
     const phase = mapPhase(g.type || "group", g.group || "")
     let minute = null
+    let isDataPending = false
 
     if (status === "live" && g.time_elapsed !== "notstarted" && g.time_elapsed !== "finished") {
       const parsed = parseInt(g.time_elapsed)
@@ -279,7 +280,6 @@ function mapRawGame(g: any, stadiumsMap: Record<string, Stadium>): Match | null 
     }
 
     // SIMULATION LIVE (Si l'API distante ne répond pas et qu'on utilise le fallback JSON statique)
-    // On compare l'heure actuelle avec l'heure prévue du match.
     if (status === "scheduled") {
       const now = new Date()
       const matchDate = new Date(dateStr)
@@ -287,12 +287,13 @@ function mapRawGame(g: any, stadiumsMap: Record<string, Stadium>): Match | null 
       
       if (diffMinutes >= 0 && diffMinutes <= 120) {
         status = "live"
-        // Simulation grossière de la minute (en incluant 15 min de mi-temps)
+        isDataPending = true
         minute = diffMinutes > 45 ? diffMinutes - 15 : diffMinutes
         if (minute < 0) minute = 0
         if (minute > 90) minute = 90
       } else if (diffMinutes > 120) {
         status = "finished"
+        isDataPending = true
       }
     }
 
@@ -307,7 +308,8 @@ function mapRawGame(g: any, stadiumsMap: Record<string, Stadium>): Match | null 
       phase,
       status,
       minute,
-      events: [], // L'API donne scorers sous forme de chaîne, on pourrait le parser plus tard
+      isDataPending,
+      events: [],
     }
   } catch (e) {
     console.error("Erreur mapping game", e, g)
@@ -387,7 +389,7 @@ function buildFallbackStandings(): Group[] {
 
   ALL_TEAMS.forEach(t => {
     if (!groups[t.group]) {
-      groups[t.group] = { name: t.group, teams: [] }
+      groups[t.group] = { name: t.group, teams: [], isDataPending: true }
     }
     groups[t.group].teams.push({
       team: buildTeamFromData(t),

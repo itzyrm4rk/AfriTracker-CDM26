@@ -23,6 +23,7 @@ export interface Match {
   status: MatchStatus
   minute: number | null
   events: MatchEvent[]
+  isDataPending?: boolean
 }
 
 export type MatchStatus = "scheduled" | "live" | "finished" | "postponed"
@@ -37,6 +38,7 @@ export interface MatchEvent {
 export interface Group {
   name: string
   teams: Standing[]
+  isDataPending?: boolean
 }
 
 export interface Standing {
