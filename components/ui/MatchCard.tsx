@@ -163,7 +163,7 @@ export default function MatchCard({ match }: Props) {
               <span className="text-4xl sm:text-5xl">{match.homeTeam.flag}</span>
             )}
           </div>
-          <span className="font-bold text-sm sm:text-base text-center line-clamp-1">
+          <span className="font-bold text-sm sm:text-base text-center line-clamp-2 leading-tight text-balance px-1">
             {match.homeTeam.name}
           </span>
         </div>
@@ -224,7 +224,7 @@ export default function MatchCard({ match }: Props) {
               <span className="text-4xl sm:text-5xl">{match.awayTeam.flag}</span>
             )}
           </div>
-          <span className="font-bold text-sm sm:text-base text-center line-clamp-1">
+          <span className="font-bold text-sm sm:text-base text-center line-clamp-2 leading-tight text-balance px-1">
             {match.awayTeam.name}
           </span>
         </div>
