@@ -16,7 +16,7 @@ export interface TeamData {
   eliminatedAt?: string
 }
 
-export const AFRICAN_CODES = ["ZAF", "MAR", "CIV", "TUN", "EGY", "CPV", "SEN", "ALG", "COD", "GHA"]
+export const AFRICAN_CODES = ["RSA", "MAR", "CIV", "TUN", "EGY", "CPV", "SEN", "ALG", "COD", "GHA"]
 
 export const ALL_TEAMS: TeamData[] = [
   // ─── Groupe A ───────────────────────────────────────────────────────────────
