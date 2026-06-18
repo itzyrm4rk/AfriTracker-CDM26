@@ -18,7 +18,20 @@ export function getStorageData(): StorageData {
   if (typeof window === "undefined") return DEFAULT_STORAGE
   try {
     const data = localStorage.getItem(STORAGE_KEY)
-    return data ? (JSON.parse(data) as StorageData) : DEFAULT_STORAGE
+    if (data) {
+      const parsed = JSON.parse(data) as StorageData
+      // MIGRATION: Remplacer ZAF par RSA dans le cache utilisateur
+      if (parsed.african_teams) {
+        parsed.african_teams = parsed.african_teams.map(t => t === "ZAF" ? "RSA" : t)
+        
+        // Auto-sauvegarde transparente pour nettoyer le cache
+        if (parsed.african_teams.includes("RSA") && data.includes("ZAF")) {
+           localStorage.setItem(STORAGE_KEY, JSON.stringify(parsed))
+        }
+      }
+      return parsed
+    }
+    return DEFAULT_STORAGE
   } catch {
     return DEFAULT_STORAGE
   }
