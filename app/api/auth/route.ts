@@ -1,10 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server"
-import { registerAndGetToken } from "@/lib/worldcup-api"
 
 /**
- * Route utilitaire pour obtenir un token JWT WorldCup26.ir
- * Appeler en POST avec { email, password, name }
- * Sécurisée par CRON_SECRET pour usage admin uniquement
+ * Route utilitaire dépréciée (anciennement pour worldcup26.ir JWT)
  */
 export async function POST(request: NextRequest) {
   const authHeader = request.headers.get("authorization")
@@ -12,18 +9,8 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   }
 
-  const body = await request.json()
-  const { email, password, name } = body
-
-  if (!email || !password) {
-    return NextResponse.json({ error: "email and password are required" }, { status: 400 })
-  }
-
-  const token = await registerAndGetToken(email, password, name || "AfriTracker")
-
-  if (!token) {
-    return NextResponse.json({ error: "Failed to get token" }, { status: 500 })
-  }
-
-  return NextResponse.json({ token, message: "Add this token to WORLDCUP_API_TOKEN in .env.local" })
+  return NextResponse.json({ 
+    message: "Cette route n'est plus nécessaire. La nouvelle API wcup2026.org ne requiert pas de token JWT.",
+    token: "deprecated-token-not-needed"
+  })
 }

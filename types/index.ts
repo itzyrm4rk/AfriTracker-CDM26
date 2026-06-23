@@ -24,6 +24,15 @@ export interface Match {
   minute: number | null
   events: MatchEvent[]
   isDataPending?: boolean
+  stats?: MatchStat[]
+}
+
+export interface MatchStat {
+  key: string
+  keyEn: string
+  homeValue: number
+  awayValue: number
+  unit: string
 }
 
 export type MatchStatus = "scheduled" | "live" | "finished" | "postponed"

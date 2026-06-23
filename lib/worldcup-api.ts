@@ -1,19 +1,12 @@
-// Client pour l'API https://worldcup26.ir
-// Endpoints: GET /get/games, /get/groups, /get/teams, /get/stadiums
+// Client pour l'API https://wcup2026.org/api/data.php
+// Endpoints: ?action=all, ?action=live, ?action=standings, ?action=match&id=X
 
-import { Match, Group, Team, Standing, Stadium, MatchStatus } from "@/types"
-import { ALL_TEAMS, AFRICAN_CODES, getTeamByApiId, getTeamByCode, TeamData } from "@/data/teams"
+import { Match, MatchStat, Group, Team, Standing, Stadium, MatchStatus, MatchEvent } from "@/types"
+import { ALL_TEAMS, getTeamByName, getTeamByApiId, TeamData } from "@/data/teams"
 
-const BASE_URL = process.env.WORLDCUP_API_BASE || "https://worldcup26.ir"
-const TOKEN = process.env.WORLDCUP_API_TOKEN || ""
+const BASE_URL = process.env.WORLDCUP_API_BASE || "https://wcup2026.org/api/data.php"
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
-
-function getAuthHeaders(): HeadersInit {
-  return TOKEN
-    ? { Authorization: `Bearer ${TOKEN}`, "Content-Type": "application/json" }
-    : { "Content-Type": "application/json" }
-}
 
 /** Construit un objet Team de notre format à partir d'un TeamData */
 function buildTeamFromData(localTeam: TeamData): Team {
@@ -45,107 +38,57 @@ function buildUnknownTeam(idOrName: string): Team {
 }
 
 /** Mappe le statut de l'API vers notre MatchStatus */
-function mapStatus(finished: string, timeElapsed: string): MatchStatus {
-  if (finished === "TRUE") return "finished"
-
-  const elapsed = (timeElapsed || "").toLowerCase()
-  if (elapsed === "notstarted") return "scheduled"
-  if (elapsed === "finished") return "finished"
-  if (elapsed === "postponed" || elapsed === "cancelled") return "postponed"
-
-  // S'il y a un temps écoulé (ex: "45", "HT", "90+2"), c'est en cours
-  return "live"
+function mapStatus(statusRaw: string): MatchStatus {
+  const s = (statusRaw || "").toLowerCase()
+  if (s === "finished") return "finished"
+  if (s === "live" || s === "in-play" || s === "playing") return "live"
+  if (s === "postponed" || s === "cancelled") return "postponed"
+  return "scheduled"
 }
 
 // ─── Fetch principal ─────────────────────────────────────────────────────────
 
-async function apiFetch<T>(path: string): Promise<T | null> {
+async function apiFetch<T>(action: string, id?: number): Promise<T | null> {
   const controller = new AbortController()
-  const timeoutId = setTimeout(() => controller.abort(), 5000)
+  const timeoutId = setTimeout(() => controller.abort(), 10000) // 10s timeout
+
+  let url = `${BASE_URL}?action=${action}`
+  if (id !== undefined) url += `&id=${id}`
 
   try {
-    const res = await fetch(`${BASE_URL}${path}`, {
-      headers: getAuthHeaders(),
-      next: { revalidate: 60 }, // cache 60s
-      signal: controller.signal
+    const res = await fetch(url, {
+      next: { revalidate: 30 }, // cache 30s
+      signal: controller.signal,
+      headers: {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36",
+        "Accept": "application/json, text/plain, */*",
+        "Accept-Language": "fr-FR,fr;q=0.9,en-US;q=0.8,en;q=0.7",
+        "Origin": "https://wcup2026.org",
+        "Referer": "https://wcup2026.org/",
+      }
     })
 
     clearTimeout(timeoutId)
 
     if (!res.ok) {
-      console.error(`WorldCup API error ${res.status} for ${path}`)
+      console.error(`WorldCup API error ${res.status} for ${url}`)
       return null
     }
 
     const json = await res.json()
+    if (!json.ok) {
+      console.error(`WorldCup API returned ok=false for ${url}`)
+      return null
+    }
+    
     return json as T
   } catch (err: any) {
     clearTimeout(timeoutId)
     if (err.name === 'AbortError') {
-      console.warn(`⏳ Timeout de 5s dépassé pour ${path} - L'API distante ne répond pas.`)
+      console.warn(`⏳ Timeout de 5s dépassé pour ${url} - L'API distante ne répond pas.`)
     } else {
-      console.error(`WorldCup API fetch error for ${path}:`, err.message)
+      console.error(`WorldCup API fetch error for ${url}:`, err.message)
     }
-    return null
-  }
-}
-
-// ─── Stadiums (Cache simple) ─────────────────────────────────────────────────
-
-// On pourrait cacher ça, mais on va juste les fetch au besoin ou les intégrer
-let cachedStadiums: Record<string, Stadium> | null = null
-
-export async function fetchStadiumsMap(): Promise<Record<string, Stadium>> {
-  if (cachedStadiums) return cachedStadiums
-
-  const res = await apiFetch<{ stadiums: any[] }>("/get/stadiums")
-  if (!res || !res.stadiums) return {}
-
-  const map: Record<string, Stadium> = {}
-  res.stadiums.forEach(s => {
-    map[s.id] = {
-      name: s.name_en || s.fifa_name || "Unknown Stadium",
-      city: s.city_en || "",
-      country: s.country_en || "",
-      countryFlag: s.country_en === "Mexico" ? "🇲🇽" : s.country_en === "Canada" ? "🇨🇦" : "🇺🇸",
-      capacity: s.capacity || 0
-    }
-  })
-
-  cachedStadiums = map
-  return map
-}
-
-// ─── Auth (pour obtenir un token JWT) ───────────────────────────────────────
-
-export async function registerAndGetToken(email: string, password: string, name: string): Promise<string | null> {
-  try {
-    // Essai login d'abord
-    const loginRes = await fetch(`${BASE_URL}/auth/login`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, password }),
-    })
-
-    if (loginRes.ok) {
-      const data = await loginRes.json()
-      return data.token || null
-    }
-
-    // Si login échoue, on s'enregistre
-    const registerRes = await fetch(`${BASE_URL}/auth/register`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name, email, password }),
-    })
-
-    if (registerRes.ok) {
-      const data = await registerRes.json()
-      return data.token || null
-    }
-
-    return null
-  } catch {
     return null
   }
 }
@@ -153,11 +96,7 @@ export async function registerAndGetToken(email: string, password: string, name:
 // ─── Teams ───────────────────────────────────────────────────────────────────
 
 export async function fetchAllAPITeams(): Promise<Team[]> {
-  const res = await apiFetch<{ teams: any[] }>("/get/teams")
-  if (!res || !res.teams) return buildFallbackTeams()
-
-  // On retourne simplement notre liste locale mappée, car on a déjà géré
-  // les bonnes associations de groupes et d'identifiants dans data/teams.ts
+  // Plus besoin de fetch sur l'API car on gère les équipes localement
   return ALL_TEAMS.map(buildTeamFromData)
 }
 
@@ -168,19 +107,17 @@ function buildFallbackTeams(): Team[] {
 // ─── Matches ─────────────────────────────────────────────────────────────────
 
 export async function fetchAllMatches(): Promise<Match[]> {
-  const [gamesRes, stadiumsMap] = await Promise.all([
-    apiFetch<{ games: any[] }>("/get/games"),
-    fetchStadiumsMap()
-  ])
-
-  let games = gamesRes?.games
+  const res = await apiFetch<{ matches: any[] }>("all")
+  let games = res?.matches
 
   // FALLBACK LOGIC : Graceful Degradation
   if (!games) {
     console.warn("⚠️ WorldCup API indisponible. Utilisation du calendrier de secours (Fallback).")
     try {
       const fallbackData = require("@/data/fallback-games.json")
-      games = fallbackData.games
+      // Le fallback est maintenant au même format que l'API communautaire,
+      // mais on garde `.games` au cas où un ancien fichier serait encore utilisé.
+      games = fallbackData.matches || fallbackData.games || []
     } catch (e) {
       console.error("Impossible de charger le fallback des matchs", e)
       return []
@@ -189,7 +126,15 @@ export async function fetchAllMatches(): Promise<Match[]> {
 
   if (!games) return []
 
-  return games.map((g: any) => mapRawGame(g, stadiumsMap)).filter(Boolean) as Match[]
+  // Si on lit le fallback (ancien format), on utilise l'ancien mapping (simplifié ici).
+  // Si c'est le nouveau format, on le map.
+  return games.map((g: any) => g.home_team_id ? mapOldRawGame(g) : mapRawGame(g)).filter(Boolean) as Match[]
+}
+
+export async function fetchMatchDetails(id: number): Promise<Match | null> {
+  const res = await apiFetch<{ match: any }>("match", id)
+  if (!res || !res.match) return null
+  return mapRawGame(res.match)
 }
 
 export async function fetchMatchesByDate(date: string): Promise<Match[]> {
@@ -198,88 +143,53 @@ export async function fetchMatchesByDate(date: string): Promise<Match[]> {
 }
 
 export async function fetchLiveMatches(): Promise<Match[]> {
-  const all = await fetchAllMatches()
-  return all.filter(m => m.status === "live")
+  const res = await apiFetch<{ matches: any[] }>("live")
+  if (!res || !res.matches) return []
+  return res.matches.map(mapRawGame).filter(Boolean) as Match[]
 }
 
-function parseScore(scoreStr: string | null | undefined): number | null {
-  if (scoreStr === null || scoreStr === undefined || scoreStr === "null") return null
-  const num = parseInt(scoreStr, 10)
+function parseScore(scoreArray: any[] | null | undefined, index: number): number | null {
+  if (!scoreArray || !Array.isArray(scoreArray) || scoreArray.length < 2) return null
+  const num = parseInt(scoreArray[index], 10)
   return isNaN(num) ? null : num
 }
 
-function parseDateUTC(dateStr: string, stadiumId: string, stadiumsMap: Record<string, Stadium>): string {
-  // L'API renvoie la date locale du stade: "06/13/2026 21:00"
-  if (!dateStr) return new Date().toISOString()
+function mapRawGame(g: any): Match | null {
   try {
-    const [datePart, timePart] = dateStr.split(' ')
-    const [month, day, year] = datePart.split('/')
-    const [hours, minutes] = timePart.split(':')
-
-    // Déterminer le fuseau horaire en fonction de la région du stade
-    let offsetHours = -4; // Par défaut EDT (Eastern Daylight Time)
-    const rawStadium = stadiumsMap[stadiumId] as any; // Cast car on a besoin de la region brute 
-
-    // Les IDs de stades (1 à 16)
-    const id = parseInt(stadiumId);
-    if (id >= 13 && id <= 16) {
-      // Western (Vancouver, Seattle, SF, LA) -> PDT (UTC-7)
-      offsetHours = -7;
-    } else if (id >= 1 && id <= 3) {
-      // Mexico Central (Mexico City, Guadalajara, Monterrey) -> CST (UTC-6)
-      // Note: Le Mexique n'applique plus l'heure d'été
-      offsetHours = -6;
-    } else if (id >= 4 && id <= 6) {
-      // US Central (Dallas, Houston, KC) -> CDT (UTC-5)
-      offsetHours = -5;
-    } else if (id >= 7 && id <= 12) {
-      // Eastern (Atlanta, Miami, Boston, Philly, NY, Toronto) -> EDT (UTC-4)
-      offsetHours = -4;
-    }
-
-    // Créer la date UTC en compensant le fuseau du stade
-    // Ex: s'il est 21h au stade à UTC-4, l'heure UTC absolue est 21h - (-4) = 01h le lendemain
-    const date = new Date(Date.UTC(parseInt(year), parseInt(month) - 1, parseInt(day), parseInt(hours) - offsetHours, parseInt(minutes)))
-    return date.toISOString()
-  } catch {
-    return new Date().toISOString()
-  }
-}
-
-function mapRawGame(g: any, stadiumsMap: Record<string, Stadium>): Match | null {
-  try {
-    // Si l'équipe est "0", c'est un match TBD (ex: "Winner Match 86")
     let homeTeam: Team
     let awayTeam: Team
 
-    if (g.home_team_id === "0") {
-      homeTeam = buildUnknownTeam(g.home_team_label || "TBD")
-    } else {
-      const localHome = getTeamByApiId(g.home_team_id)
-      homeTeam = localHome ? buildTeamFromData(localHome) : buildUnknownTeam(g.home_team_name_en)
+    const localHome = getTeamByName(g.team1 || "")
+    homeTeam = localHome ? buildTeamFromData(localHome) : buildUnknownTeam(g.team1 || "TBD")
+
+    const localAway = getTeamByName(g.team2 || "")
+    awayTeam = localAway ? buildTeamFromData(localAway) : buildUnknownTeam(g.team2 || "TBD")
+
+    const stadium: Stadium = {
+      name: g.ground || "Stade inconnu",
+      city: g.ground ? g.ground.split("(")[0].trim() : "",
+      country: "",
+      countryFlag: "🏳️",
+      capacity: 0
     }
 
-    if (g.away_team_id === "0") {
-      awayTeam = buildUnknownTeam(g.away_team_label || "TBD")
-    } else {
-      const localAway = getTeamByApiId(g.away_team_id)
-      awayTeam = localAway ? buildTeamFromData(localAway) : buildUnknownTeam(g.away_team_name_en)
+    // Datetime est un timestamp en secondes
+    let dateStr = new Date().toISOString()
+    if (g.datetime) {
+      dateStr = new Date(g.datetime * 1000).toISOString()
     }
 
-    const stadium = stadiumsMap[g.stadium_id] || buildStadium({ name: "Unknown Stadium" })
-
-    const dateStr = parseDateUTC(g.local_date, g.stadium_id, stadiumsMap)
-    let status = mapStatus(g.finished, g.time_elapsed)
-    const phase = mapPhase(g.type || "group", g.group || "")
+    let status = mapStatus(g.status)
+    const phase = mapPhase(g.round || "group", g.group || "")
     let minute = null
     let isDataPending = false
 
-    if (status === "live" && g.time_elapsed !== "notstarted" && g.time_elapsed !== "finished") {
-      const parsed = parseInt(g.time_elapsed)
+    if (status === "live" && g.live_minute) {
+      const parsed = parseInt(g.live_minute)
       if (!isNaN(parsed)) minute = parsed
     }
 
-    // SIMULATION LIVE (Si l'API distante ne répond pas et qu'on utilise le fallback JSON statique)
+    // SIMULATION LIVE (Si fallback etc.)
     if (status === "scheduled") {
       const now = new Date()
       const matchDate = new Date(dateStr)
@@ -297,19 +207,70 @@ function mapRawGame(g: any, stadiumsMap: Record<string, Stadium>): Match | null 
       }
     }
 
+    // Events mapping
+    const events: MatchEvent[] = []
+    
+    if (g.goals1 && Array.isArray(g.goals1)) {
+      g.goals1.forEach((ev: any) => {
+        events.push({ type: "goal", minute: parseInt(ev.minute) || 0, team: homeTeam.name, player: ev.name })
+      })
+    }
+    if (g.goals2 && Array.isArray(g.goals2)) {
+      g.goals2.forEach((ev: any) => {
+        events.push({ type: "goal", minute: parseInt(ev.minute) || 0, team: awayTeam.name, player: ev.name })
+      })
+    }
+    
+    // Cards mapping
+    if (g.cards && Array.isArray(g.cards)) {
+      g.cards.forEach((card: any) => {
+        const teamName = card.team === 1 ? homeTeam.name : awayTeam.name
+        const type = card.type === "yellow" ? "yellow_card" : "red_card"
+        events.push({ type, minute: parseInt(card.minute) || 0, team: teamName, player: card.name })
+      })
+    }
+    
+    events.sort((a, b) => a.minute - b.minute)
+
+    // Stats mapping
+    const stats: MatchStat[] = []
+    const statTranslations: Record<string, string> = {
+      "Possession": "Possession",
+      "Shots": "Tirs",
+      "Shots on target": "Tirs cadrés",
+      "Corners": "Corners",
+      "Offsides": "Hors-jeu",
+      "Fouls": "Fautes",
+      "Yellow cards": "Cartons jaunes",
+      "Saves": "Arrêts"
+    }
+
+    if (g.stats && Array.isArray(g.stats)) {
+      g.stats.forEach((s: any) => {
+        stats.push({
+          key: statTranslations[s.k_en] || s.k_en || s.k,
+          keyEn: s.k_en,
+          homeValue: Array.isArray(s.v) ? s.v[0] : 0,
+          awayValue: Array.isArray(s.v) ? s.v[1] : 0,
+          unit: s.unit || ""
+        })
+      })
+    }
+
     return {
       id: parseInt(g.id) || Math.random(),
       homeTeam,
       awayTeam,
-      homeScore: parseScore(g.home_score),
-      awayScore: parseScore(g.away_score),
+      homeScore: parseScore(g.score, 0),
+      awayScore: parseScore(g.score, 1),
       date: dateStr,
       stadium,
       phase,
       status,
       minute,
       isDataPending,
-      events: [],
+      events,
+      stats,
     }
   } catch (e) {
     console.error("Erreur mapping game", e, g)
@@ -317,56 +278,135 @@ function mapRawGame(g: any, stadiumsMap: Record<string, Stadium>): Match | null 
   }
 }
 
-function buildStadium(raw: { name?: string; city?: string; country?: string; capacity?: number }): Stadium {
-  return {
-    name: raw.name || "Stade inconnu",
-    city: raw.city || "",
-    country: raw.country || "",
-    countryFlag: "🏳️",
-    capacity: raw.capacity || 0,
+// Mapping complet du format de l'ancienne API iranienne (fallback-games.json)
+function mapOldRawGame(g: any): Match | null {
+  try {
+    let homeTeam: Team
+    let awayTeam: Team
+
+    if (g.home_team_id === "0") {
+      homeTeam = buildUnknownTeam(g.home_team_label || "TBD")
+    } else {
+      const localHome = getTeamByApiId(g.home_team_id) || getTeamByName(g.home_team_name_en || "")
+      homeTeam = localHome ? buildTeamFromData(localHome) : buildUnknownTeam(g.home_team_name_en || "TBD")
+    }
+
+    if (g.away_team_id === "0") {
+      awayTeam = buildUnknownTeam(g.away_team_label || "TBD")
+    } else {
+      const localAway = getTeamByApiId(g.away_team_id) || getTeamByName(g.away_team_name_en || "")
+      awayTeam = localAway ? buildTeamFromData(localAway) : buildUnknownTeam(g.away_team_name_en || "TBD")
+    }
+
+    // Parse date from old format "MM/DD/YYYY HH:mm"
+    let dateStr = new Date().toISOString()
+    if (g.local_date) {
+      try {
+        const [datePart, timePart] = g.local_date.split(' ')
+        const [month, day, year] = datePart.split('/')
+        const [hours, minutes] = (timePart || '00:00').split(':')
+        // Use Eastern time (UTC-4) as default for old fallback data
+        const d = new Date(Date.UTC(parseInt(year), parseInt(month) - 1, parseInt(day), parseInt(hours) + 4, parseInt(minutes)))
+        dateStr = d.toISOString()
+      } catch {}
+    }
+
+    let status: MatchStatus = "scheduled"
+    if (g.finished === "TRUE" || g.time_elapsed === "finished") status = "finished"
+    else if (g.time_elapsed === "notstarted") status = "scheduled"
+    else if (g.time_elapsed && g.time_elapsed !== "notstarted" && g.time_elapsed !== "finished") status = "live"
+
+    const phase = mapPhase(g.type || "group", g.group || "")
+
+    const homeScore = g.finished === "TRUE" ? (parseInt(g.home_score) || 0) : null
+    const awayScore = g.finished === "TRUE" ? (parseInt(g.away_score) || 0) : null
+
+    return {
+      id: parseInt(g.id) || Math.random(),
+      homeTeam,
+      awayTeam,
+      homeScore,
+      awayScore,
+      date: dateStr,
+      stadium: { name: "Stade (données de secours)", city: "", country: "", countryFlag: "🏳️", capacity: 0 },
+      phase,
+      status,
+      minute: null,
+      isDataPending: false,
+      events: []
+    }
+  } catch (e) {
+    console.error("Erreur mapping old fallback game", e, g)
+    return null
   }
 }
 
-function mapPhase(type: string, groupRaw: string): string {
-  const t = type.toLowerCase()
-  if (t === "final") return "Finale"
-  if (t === "third") return "Petite Finale"
-  if (t === "sf") return "Demi-finales"
-  if (t === "qf") return "Quarts de Finale"
-  if (t === "r16") return "1/16 de Finale" // 16 équipes restantes -> Huitièmes
-  if (t === "r32") return "1/32 de Finale" // 32 équipes restantes -> Seizièmes
 
-  if (t === "group" || groupRaw) {
-    return `Groupe ${groupRaw.replace("Group", "").trim().toUpperCase()}`
+function mapPhase(round: string, groupRaw: string): string {
+  const r = round.toLowerCase()
+  if (r.includes("final") && !r.includes("quarter") && !r.includes("semi") && !r.includes("third")) return "Finale"
+  if (r.includes("third") || r.includes("3rd")) return "Petite Finale"
+  if (r.includes("semi")) return "Demi-finales"
+  if (r.includes("quarter")) return "Quarts de Finale"
+  if (r.includes("round of 16") || r.includes("1/8")) return "1/8 de Finale"
+  if (r.includes("round of 32") || r.includes("1/16")) return "1/16 de Finale"
+
+  if (r.includes("matchday") || groupRaw) {
+    const grp = groupRaw.replace("Group", "").trim().toUpperCase()
+    return grp ? `Groupe ${grp}` : "Phase de groupes"
   }
   return "Inconnu"
 }
 
-// ─── Standings ────────────────────────────────────────────────────────────────
+// ─── Standings & Scorers ──────────────────────────────────────────────────────
 
-export async function fetchStandings(): Promise<Group[]> {
-  const res = await apiFetch<{ groups: any[] }>("/get/groups")
-  if (!res || !res.groups) return buildFallbackStandings()
-
-  return res.groups.map(g => mapRawGroup(g)).filter(Boolean) as Group[]
+export interface Scorer {
+  name: string
+  team: string
+  goals: number
 }
 
-function mapRawGroup(g: any): Group | null {
-  try {
-    const name = g.name || "?"
-    const teams: Standing[] = (g.teams || []).map((s: any, i: number) => {
+export async function fetchScorers(): Promise<Scorer[]> {
+  const res = await apiFetch<{ scorers: any[] }>("scorers")
+  if (!res || !res.scorers) return []
+  return res.scorers.map(s => ({
+    name: s.name,
+    team: s.team,
+    goals: parseInt(s.goals) || 0
+  }))
+}
 
-      const localData = getTeamByApiId(s.team_id)
-      const team = localData ? buildTeamFromData(localData) : buildUnknownTeam(s.team_id)
+export async function fetchStandings(): Promise<Group[]> {
+  const res = await apiFetch<{ standings: Record<string, any[]> }>("standings")
+  if (!res || !res.standings) return buildFallbackStandings()
+
+  const groups: Group[] = []
+  
+  for (const [groupName, teams] of Object.entries(res.standings)) {
+    const mapped = mapRawGroup(groupName, teams)
+    if (mapped) groups.push(mapped)
+  }
+  
+  return groups
+}
+
+function mapRawGroup(groupName: string, teamsArray: any[]): Group | null {
+  try {
+    const name = groupName.replace("Group", "Groupe").trim()
+    const teams: Standing[] = (teamsArray || []).map((s: any, i: number) => {
+
+      // The new API uses "team" for the English name
+      const localData = getTeamByName(s.team)
+      const team = localData ? buildTeamFromData(localData) : buildUnknownTeam(s.team)
 
       return {
         team,
-        played: parseInt(s.mp) || 0,
+        played: parseInt(s.p) || 0,
         won: parseInt(s.w) || 0,
         drawn: parseInt(s.d) || 0,
         lost: parseInt(s.l) || 0,
-        goalsFor: parseInt(s.gf) || 0,
-        goalsAgainst: parseInt(s.ga) || 0,
+        goalsFor: parseInt(s.gf) || 0, // new API uses gf, old used f
+        goalsAgainst: parseInt(s.ga) || 0, // new API uses ga, old used a
         goalDifference: parseInt(s.gd) || 0,
         points: parseInt(s.pts) || 0,
         position: i + 1, // Will be resorted

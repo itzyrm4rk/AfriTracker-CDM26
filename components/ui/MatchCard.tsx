@@ -1,8 +1,8 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { MapPin, CalendarPlus } from "lucide-react"
-import type { Match } from "@/types"
+import { MapPin, CalendarPlus, ChevronDown, ChevronUp } from "lucide-react"
+import type { Match, MatchEvent, MatchStat } from "@/types"
 import { generateGoogleCalendarLink, generateICSFile } from "@/lib/calendar"
 
 // ─── Sub-components ──────────────────────────────────────────────────────────
@@ -57,9 +57,41 @@ interface Props {
 }
 
 export default function MatchCard({ match }: Props) {
+  const [isExpanded, setIsExpanded] = useState(false)
+  const [detailedEvents, setDetailedEvents] = useState<MatchEvent[] | null>(null)
+  const [detailedStats, setDetailedStats] = useState<MatchStat[] | null>(null)
+  const [isLoadingEvents, setIsLoadingEvents] = useState(false)
+
   const isLive = match.status === "live"
   const isFinished = match.status === "finished"
   const isUpcoming = match.status === "scheduled"
+
+  const canExpand = (isLive || isFinished) && !match.isDataPending
+
+  const handleCardClick = async () => {
+    if (!canExpand) return
+
+    if (!isExpanded) {
+      setIsExpanded(true)
+      if (!detailedEvents) {
+        setIsLoadingEvents(true)
+        try {
+          const res = await fetch(`/api/matches/${match.id}`)
+          if (res.ok) {
+            const data: Match = await res.json()
+            setDetailedEvents(data.events || [])
+            setDetailedStats(data.stats || [])
+          }
+        } catch (e) {
+          console.error("Failed to fetch match events", e)
+        } finally {
+          setIsLoadingEvents(false)
+        }
+      }
+    } else {
+      setIsExpanded(false)
+    }
+  }
 
   const formatTime = (d: string) =>
     new Intl.DateTimeFormat(undefined, { hour: "2-digit", minute: "2-digit" }).format(new Date(d))
@@ -81,7 +113,8 @@ export default function MatchCard({ match }: Props) {
     return diff > 0 && diff < 3 * 3_600_000
   }
 
-  const handleAddToCalendar = (type: "google" | "apple") => {
+  const handleAddToCalendar = (e: React.MouseEvent, type: "google" | "apple") => {
+    e.stopPropagation()
     const endDate = new Date(new Date(match.date).getTime() + 2 * 3_600_000).toISOString()
     const title = `${match.homeTeam.flag} ${match.homeTeam.name} vs ${match.awayTeam.name} ${match.awayTeam.flag} · CdM 2026`
     const details = `${match.phase} · ${match.stadium.name}, ${match.stadium.city}`
@@ -101,12 +134,15 @@ export default function MatchCard({ match }: Props) {
     }
   }
 
+  const eventsToDisplay = detailedEvents || match.events
+
   return (
     <div
-      className="flex flex-col relative overflow-hidden transition-all"
+      onClick={handleCardClick}
+      className={`flex flex-col relative overflow-hidden transition-all duration-300 ${canExpand ? "cursor-pointer hover:brightness-110" : ""}`}
       style={{
         background: "var(--color-surface)",
-        border: `1px solid ${isLive ? "rgba(211,47,47,0.4)" : "var(--color-border)"}`,
+        border: `1px solid ${isLive ? "rgba(211,47,47,0.4)" : canExpand && isExpanded ? "var(--color-gold)" : "var(--color-border)"}`,
         borderRadius: "0.75rem",
         padding: "1rem",
         boxShadow: isLive ? "0 0 20px rgba(211,47,47,0.1)" : undefined,
@@ -230,8 +266,8 @@ export default function MatchCard({ match }: Props) {
         </div>
       </div>
 
-      {/* Events (live only) */}
-      {isLive && match.events.length > 0 && (
+      {/* Events Preview (live only, unexpanded) */}
+      {isLive && !isExpanded && match.events.length > 0 && (
         <div
           className="mt-2 pt-2 text-xs flex justify-center gap-4"
           style={{ borderTop: "1px solid rgba(30,45,61,0.5)", color: "var(--color-text-muted)" }}
@@ -251,6 +287,95 @@ export default function MatchCard({ match }: Props) {
         </div>
       )}
 
+      {/* Expanded Timeline */}
+      {isExpanded && canExpand && (
+        <div 
+          className="mt-4 pt-4 text-xs flex flex-col gap-2"
+          style={{ borderTop: "1px solid rgba(30,45,61,0.5)", color: "var(--color-text-muted)" }}
+        >
+          {isLoadingEvents ? (
+            <div className="text-center py-2 animate-pulse">Chargement des détails du match...</div>
+          ) : eventsToDisplay.length > 0 ? (
+            <div className="flex flex-col gap-2">
+              <div className="text-center mb-1 font-semibold uppercase tracking-wider text-[10px]" style={{ color: "var(--color-text)" }}>
+                Événements du match
+              </div>
+              {eventsToDisplay.map((event, i) => {
+                const isHome = event.team === match.homeTeam.name
+                return (
+                  <div key={i} className={`flex items-center w-full ${isHome ? "justify-start" : "justify-end"}`}>
+                    <div className={`flex items-center gap-1.5 sm:gap-2 w-[48%] ${isHome ? "justify-start" : "justify-start flex-row-reverse"}`}>
+                      {event.type === "goal" && <span className="text-sm">⚽</span>}
+                      {event.type === "red_card" && <span className="inline-block w-2 h-3 rounded-sm bg-red-500" />}
+                      {event.type === "yellow_card" && <span className="inline-block w-2 h-3 rounded-sm bg-yellow-500" />}
+                      <span className="font-semibold text-white text-[11px] sm:text-xs truncate max-w-[100px] sm:max-w-[150px]">
+                        {event.player}
+                      </span>
+                      <span className="font-mono text-[10px] sm:text-xs whitespace-nowrap" style={{ color: "var(--color-gold)" }}>
+                        {event.minute}&apos;
+                      </span>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          ) : (
+            <div className="text-center py-2 opacity-50">Aucun événement enregistré pour ce match</div>
+          )}
+
+          {/* Stats Section */}
+          {!isLoadingEvents && detailedStats && detailedStats.length > 0 && (
+            <div className="mt-4 pt-4" style={{ borderTop: "1px solid rgba(30,45,61,0.5)" }}>
+              <div className="text-center mb-4 font-semibold uppercase tracking-wider text-[10px]" style={{ color: "var(--color-text)" }}>
+                Statistiques du match
+              </div>
+              <div className="flex flex-col gap-3 px-1 sm:px-4">
+                {detailedStats.map((stat, i) => {
+                  const total = stat.homeValue + stat.awayValue
+                  const homePercent = total === 0 ? 50 : (stat.homeValue / total) * 100
+                  const awayPercent = total === 0 ? 50 : (stat.awayValue / total) * 100
+                  
+                  const homeIsHigher = stat.homeValue > stat.awayValue
+                  const awayIsHigher = stat.awayValue > stat.homeValue
+                  
+                  return (
+                    <div key={i} className="flex flex-col gap-1.5">
+                      <div className="flex justify-between items-center text-[10px] sm:text-xs">
+                        <span className={`font-mono ${homeIsHigher ? "text-white font-bold" : "text-slate-400"}`}>
+                          {stat.homeValue}{stat.unit}
+                        </span>
+                        <span className="font-medium text-slate-300 capitalize">{stat.key}</span>
+                        <span className={`font-mono ${awayIsHigher ? "text-white font-bold" : "text-slate-400"}`}>
+                          {stat.awayValue}{stat.unit}
+                        </span>
+                      </div>
+                      <div className="flex w-full h-1.5 rounded-full overflow-hidden" style={{ background: "rgba(30,45,61,0.5)" }}>
+                        <div 
+                          className="h-full transition-all duration-1000 ease-out" 
+                          style={{ width: `${homePercent}%`, backgroundColor: "var(--color-primary)" }}
+                        />
+                        <div className="w-0.5 h-full opacity-50" style={{ backgroundColor: "var(--color-bg)" }} />
+                        <div 
+                          className="h-full transition-all duration-1000 ease-out" 
+                          style={{ width: `${awayPercent}%`, backgroundColor: "var(--color-gold)" }}
+                        />
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Expand/Collapse Indicator */}
+      {canExpand && (
+        <div className="absolute bottom-1 left-0 right-0 flex justify-center opacity-40">
+          {isExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+        </div>
+      )}
+
       {/* Calendar buttons */}
       {isUpcoming && (
         <div
@@ -258,7 +383,7 @@ export default function MatchCard({ match }: Props) {
           style={{ borderTop: "1px solid rgba(30,45,61,0.5)" }}
         >
           <button
-            onClick={() => handleAddToCalendar("google")}
+            onClick={(e) => handleAddToCalendar(e, "google")}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-colors"
             style={{
               background: "var(--color-surface-2)",
@@ -268,7 +393,7 @@ export default function MatchCard({ match }: Props) {
             <CalendarPlus size={13} /> Google
           </button>
           <button
-            onClick={() => handleAddToCalendar("apple")}
+            onClick={(e) => handleAddToCalendar(e, "apple")}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-colors"
             style={{
               background: "var(--color-surface-2)",

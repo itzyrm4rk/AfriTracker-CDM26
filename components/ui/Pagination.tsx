@@ -6,9 +6,12 @@ import { ChevronLeft, ChevronRight } from "lucide-react"
 interface Props {
   currentPage: number
   totalPages: number
+  /** Si fourni, la pagination est contrôlée par cet callback (mode état local).
+   *  Sinon, elle navigue via l'URL (mode URL). */
+  onPageChange?: (page: number) => void
 }
 
-export default function Pagination({ currentPage, totalPages }: Props) {
+export default function Pagination({ currentPage, totalPages, onPageChange }: Props) {
   const router = useRouter()
   const pathname = usePathname()
   const searchParams = useSearchParams()
@@ -19,12 +22,20 @@ export default function Pagination({ currentPage, totalPages }: Props) {
     return `${pathname}?${params.toString()}`
   }
 
+  const goTo = (page: number) => {
+    if (onPageChange) {
+      onPageChange(page)
+    } else {
+      router.push(createPageURL(page))
+    }
+  }
+
   if (totalPages <= 1) return null
 
   return (
     <div className="flex items-center justify-center gap-4 py-8">
       <button
-        onClick={() => router.push(createPageURL(currentPage - 1))}
+        onClick={() => goTo(currentPage - 1)}
         disabled={currentPage <= 1}
         className="p-2 rounded-full transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
         style={{ background: "var(--color-surface)", border: "1px solid var(--color-border)" }}
@@ -40,7 +51,7 @@ export default function Pagination({ currentPage, totalPages }: Props) {
       </div>
 
       <button
-        onClick={() => router.push(createPageURL(currentPage + 1))}
+        onClick={() => goTo(currentPage + 1)}
         disabled={currentPage >= totalPages}
         className="p-2 rounded-full transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
         style={{ background: "var(--color-surface)", border: "1px solid var(--color-border)" }}

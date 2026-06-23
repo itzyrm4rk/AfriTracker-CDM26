@@ -27,7 +27,7 @@ export const ALL_TEAMS: TeamData[] = [
 
   // ─── Groupe B ───────────────────────────────────────────────────────────────
   { id: 5,  apiId: "5",  name: "Canada",              nameEn: "Canada",            code: "CAN", flag: "🇨🇦", flagUrl: "https://flagcdn.com/w80/ca.png",      group: "B", isAfrican: false, isEliminated: false },
-  { id: 6,  apiId: "6",  name: "Bosnie-Herzégovine",  nameEn: "Bosnia and Herzegovina", code: "BIH", flag: "🇧🇦", flagUrl: "https://flagcdn.com/w80/ba.png", group: "B", isAfrican: false, isEliminated: false },
+  { id: 6,  apiId: "6",  name: "Bosnie-Herzégovine",  nameEn: "Bosnia & Herzegovina", code: "BIH", flag: "🇧🇦", flagUrl: "https://flagcdn.com/w80/ba.png", group: "B", isAfrican: false, isEliminated: false },
   { id: 7,  apiId: "7",  name: "Qatar",               nameEn: "Qatar",             code: "QAT", flag: "🇶🇦", flagUrl: "https://flagcdn.com/w80/qa.png",      group: "B", isAfrican: false, isEliminated: false },
   { id: 8,  apiId: "8",  name: "Suisse",              nameEn: "Switzerland",       code: "SUI", flag: "🇨🇭", flagUrl: "https://flagcdn.com/w80/ch.png",      group: "B", isAfrican: false, isEliminated: false },
 
@@ -38,7 +38,7 @@ export const ALL_TEAMS: TeamData[] = [
   { id: 12, apiId: "12", name: "Écosse",              nameEn: "Scotland",          code: "SCO", flag: "🏴󠁧󠁢󠁳󠁣󠁴󠁿", flagUrl: "https://flagcdn.com/w80/gb-sct.png", group: "C", isAfrican: false, isEliminated: false },
 
   // ─── Groupe D ───────────────────────────────────────────────────────────────
-  { id: 13, apiId: "13", name: "États-Unis",          nameEn: "United States",     code: "USA", flag: "🇺🇸", flagUrl: "https://flagcdn.com/w80/us.png",      group: "D", isAfrican: false, isEliminated: false },
+  { id: 13, apiId: "13", name: "États-Unis",          nameEn: "USA",     code: "USA", flag: "🇺🇸", flagUrl: "https://flagcdn.com/w80/us.png",      group: "D", isAfrican: false, isEliminated: false },
   { id: 14, apiId: "14", name: "Paraguay",            nameEn: "Paraguay",          code: "PAR", flag: "🇵🇾", flagUrl: "https://flagcdn.com/w80/py.png",      group: "D", isAfrican: false, isEliminated: false },
   { id: 15, apiId: "15", name: "Australie",           nameEn: "Australia",         code: "AUS", flag: "🇦🇺", flagUrl: "https://flagcdn.com/w80/au.png",      group: "D", isAfrican: false, isEliminated: false },
   { id: 16, apiId: "16", name: "Turquie",             nameEn: "Turkey",            code: "TUR", flag: "🇹🇷", flagUrl: "https://flagcdn.com/w80/tr.png",      group: "D", isAfrican: false, isEliminated: false },
@@ -81,7 +81,7 @@ export const ALL_TEAMS: TeamData[] = [
 
   // ─── Groupe K ───────────────────────────────────────────────────────────────
   { id: 41, apiId: "41", name: "Portugal",            nameEn: "Portugal",          code: "POR", flag: "🇵🇹", flagUrl: "https://flagcdn.com/w80/pt.png",      group: "K", isAfrican: false, isEliminated: false },
-  { id: 42, apiId: "42", name: "Rép. Dém. du Congo",  nameEn: "Democratic Republic of the Congo", code: "COD", flag: "🇨🇩", flagUrl: "https://flagcdn.com/w80/cd.png", group: "K", isAfrican: true,  isEliminated: false },
+  { id: 42, apiId: "42", name: "Rép. Dém. du Congo",  nameEn: "DR Congo", code: "COD", flag: "🇨🇩", flagUrl: "https://flagcdn.com/w80/cd.png", group: "K", isAfrican: true,  isEliminated: false },
   { id: 43, apiId: "43", name: "Ouzbékistan",         nameEn: "Uzbekistan",        code: "UZB", flag: "🇺🇿", flagUrl: "https://flagcdn.com/w80/uz.png",      group: "K", isAfrican: false, isEliminated: false },
   { id: 44, apiId: "44", name: "Colombie",            nameEn: "Colombia",          code: "COL", flag: "🇨🇴", flagUrl: "https://flagcdn.com/w80/co.png",      group: "K", isAfrican: false, isEliminated: false },
 
@@ -129,4 +129,9 @@ export function getTeamFlag(code: string): string {
 
 export function getTeamFlagUrl(code: string): string {
   return getTeamByCode(code)?.flagUrl ?? ""
+}
+
+export function getTeamByName(nameEn: string): TeamData | undefined {
+  const normalized = nameEn.trim().toLowerCase()
+  return ALL_TEAMS.find(t => t.nameEn.toLowerCase() === normalized)
 }

@@ -2,13 +2,14 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { Home, Users, Calendar, Trophy, Settings } from "lucide-react"
+import { Home, Users, Calendar, Trophy, Settings, Activity } from "lucide-react"
 
 const links = [
   { href: "/", label: "Accueil", icon: Home },
   { href: "/teams", label: "Équipes", icon: Users },
   { href: "/calendar", label: "Calendrier", icon: Calendar },
   { href: "/bracket", label: "Parcours", icon: Trophy },
+  { href: "/stats", label: "Stats", icon: Activity },
   { href: "/settings", label: "Paramètres", icon: Settings },
 ]
 

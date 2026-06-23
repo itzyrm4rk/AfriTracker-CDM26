@@ -89,7 +89,16 @@ export default function GroupTable({ group, highlightTeam, detailed = false }: P
                       href={`/teams/${standing.team.code}`}
                       className="flex items-center gap-2 hover:underline"
                     >
-                      <span className="text-base">{standing.team.flag}</span>
+                      {standing.team.flagUrl ? (
+                        <img 
+                          src={standing.team.flagUrl} 
+                          alt={standing.team.code} 
+                          className="w-5 h-auto object-contain shadow-sm rounded-sm" 
+                          loading="lazy" 
+                        />
+                      ) : (
+                        <span className="text-base">{standing.team.flag}</span>
+                      )}
                       <span className="font-medium truncate max-w-[80px] sm:max-w-none">
                         {standing.team.name}
                       </span>

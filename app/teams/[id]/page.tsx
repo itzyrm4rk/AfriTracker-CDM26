@@ -26,7 +26,7 @@ async function getTeamMatches(teamName: string): Promise<Match[]> {
 async function getGroupStanding(groupLetter: string): Promise<Group | null> {
   try {
     const standings = await fetchStandings()
-    return standings.find(g => g.name === groupLetter) ?? null
+    return standings.find(g => g.name === `Groupe ${groupLetter}` || g.name.endsWith(groupLetter)) ?? null
   } catch (error) {
     console.error("Error fetching group standing:", error)
     return null
