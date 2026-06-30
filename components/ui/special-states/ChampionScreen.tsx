@@ -5,13 +5,16 @@ import { motion, AnimatePresence } from "framer-motion"
 import confetti from "canvas-confetti"
 import { Share2, Copy, Check } from "lucide-react"
 import type { Team } from "@/types"
+import type { CompetitionStats } from "@/hooks/useCompetitionState"
 
 interface Props {
   team: Team
+  championStats: { matches: number; goals: number }
+  africanStats: CompetitionStats
   onClose?: () => void
 }
 
-export default function ChampionScreen({ team, onClose }: Props) {
+export default function ChampionScreen({ team, championStats, africanStats, onClose }: Props) {
   const [copied, setCopied] = useState(false)
 
   useEffect(() => {
@@ -64,7 +67,7 @@ export default function ChampionScreen({ team, onClose }: Props) {
           initial={{ scale: 0.8, y: 50 }}
           animate={{ scale: 1, y: 0 }}
           transition={{ type: "spring", bounce: 0.5, duration: 0.8 }}
-          className="rounded-3xl p-8 max-w-md w-full text-center relative overflow-hidden"
+          className="rounded-3xl p-6 md:p-8 max-w-md w-full text-center relative overflow-hidden my-auto"
           style={{
             background: "var(--color-surface)",
             border: "1px solid rgba(245,158,11,0.3)",
@@ -94,32 +97,50 @@ export default function ChampionScreen({ team, onClose }: Props) {
               initial={{ scale: 0 }}
               animate={{ scale: 1, rotate: [0, -10, 10, -5, 5, 0] }}
               transition={{ delay: 0.3, duration: 0.8 }}
-              className="text-9xl drop-shadow-2xl mb-4"
+              className="text-8xl md:text-9xl drop-shadow-2xl mb-4"
             >
               {team.flag}
             </motion.div>
-            <h2 className="text-4xl font-black mb-2" style={{ fontFamily: "var(--font-display)" }}>
+            <h2 className="text-3xl md:text-4xl font-black mb-2" style={{ fontFamily: "var(--font-display)" }}>
               {team.name}
             </h2>
-            <p style={{ color: "var(--color-text-muted)" }}>
+            <p className="text-sm md:text-base" style={{ color: "var(--color-text-muted)" }}>
               L&apos;Afrique entre dans l&apos;histoire en remportant sa première Coupe du Monde.
             </p>
           </div>
 
-          <div className="rounded-2xl p-4 mb-8 text-left" style={{ background: "var(--color-surface-2)" }}>
+          <div className="rounded-2xl p-4 mb-4 text-left" style={{ background: "var(--color-surface-2)" }}>
             <h3 className="font-bold text-sm mb-3">Parcours du Champion</h3>
             <div className="space-y-2 text-sm" style={{ color: "var(--color-text-muted)" }}>
               <div className="flex justify-between items-center">
                 <span>Matchs joués</span>
-                <strong style={{ color: "var(--color-text)" }}>7</strong>
+                <strong style={{ color: "var(--color-text)" }}>{championStats.matches}</strong>
               </div>
               <div className="flex justify-between items-center">
                 <span>Buts marqués</span>
-                <strong style={{ color: "var(--color-text)" }}>14</strong>
+                <strong style={{ color: "var(--color-text)" }}>{championStats.goals}</strong>
               </div>
               <div className="flex justify-between items-center">
                 <span>Statut</span>
                 <strong style={{ color: "#FBBF24" }}>Vainqueur</strong>
+              </div>
+            </div>
+          </div>
+
+          <div className="rounded-2xl p-4 mb-8 text-left" style={{ border: "1px solid var(--color-border)" }}>
+            <h3 className="font-bold text-sm mb-3">Bilan Global Africain</h3>
+            <div className="space-y-2 text-sm" style={{ color: "var(--color-text-muted)" }}>
+              <div className="flex justify-between items-center">
+                <span>Matchs joués</span>
+                <strong style={{ color: "var(--color-text)" }}>{africanStats.matches}</strong>
+              </div>
+              <div className="flex justify-between items-center">
+                <span>Total victoires</span>
+                <strong style={{ color: "var(--color-text)" }}>{africanStats.wins}</strong>
+              </div>
+              <div className="flex justify-between items-center">
+                <span>Buts marqués</span>
+                <strong style={{ color: "var(--color-text)" }}>{africanStats.goals}</strong>
               </div>
             </div>
           </div>
@@ -134,7 +155,7 @@ export default function ChampionScreen({ team, onClose }: Props) {
 
             <button
               onClick={handleWhatsApp}
-              className="w-full font-bold py-3 px-4 rounded-xl flex items-center justify-center gap-2 transition-colors text-white"
+              className="w-full font-bold py-2 md:py-3 px-4 rounded-xl flex items-center justify-center gap-2 transition-colors text-white text-sm md:text-base"
               style={{ background: "#25D366" }}
             >
               Partager sur WhatsApp
@@ -143,7 +164,7 @@ export default function ChampionScreen({ team, onClose }: Props) {
             <div className="grid grid-cols-2 gap-3">
               <button
                 onClick={handleTwitter}
-                className="font-bold py-3 px-4 rounded-xl flex items-center justify-center gap-2 transition-colors text-white"
+                className="font-bold py-2 md:py-3 px-4 rounded-xl flex items-center justify-center gap-2 transition-colors text-white text-sm md:text-base"
                 style={{ background: "black", border: "1px solid rgba(255,255,255,0.2)" }}
               >
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -154,7 +175,7 @@ export default function ChampionScreen({ team, onClose }: Props) {
               </button>
               <button
                 onClick={handleCopy}
-                className="font-bold py-3 px-4 rounded-xl flex items-center justify-center gap-2 transition-colors"
+                className="font-bold py-2 md:py-3 px-4 rounded-xl flex items-center justify-center gap-2 transition-colors text-sm md:text-base"
                 style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)", color: "var(--color-text)" }}
               >
                 {copied ? <Check size={18} style={{ color: "var(--color-success)" }} /> : <Copy size={18} />}

@@ -7,6 +7,7 @@ import { Eye, EyeOff } from "lucide-react"
 import { getBracketRounds, isAfricanTeam, type BracketMatch } from "@/lib/bracket-data"
 import { getTeamByCode } from "@/data/teams"
 import type { Match } from "@/types"
+import { useStandings } from "@/hooks/useStandings"
 
 const fetcher = (url: string) => fetch(url).then(r => r.json())
 
@@ -46,8 +47,11 @@ function BracketCard({
         border: `1px solid ${hasAfricanTeam ? "rgba(76,175,80,0.35)" : "var(--color-border)"}`,
       }}
     >
-      <div className="text-[10px] mb-2" style={{ color: "var(--color-text-muted)" }}>
-        {match.stadium} · {formatDate(match.date)}
+      <div className="flex justify-between items-center text-[10px] mb-2" style={{ color: "var(--color-text-muted)" }}>
+        <span className="truncate mr-2">{match.stadium} · {formatDate(match.date)}</span>
+        <span className="font-bold px-1.5 py-0.5 rounded bg-black/10 dark:bg-white/10 shrink-0">
+          M{match.matchNumber}
+        </span>
       </div>
 
       {/* Home */}
@@ -84,11 +88,7 @@ function BracketCard({
         )}
       </div>
 
-      {!match.homeScore && !match.awayScore && (
-        <div className="text-center text-[10px] mt-1.5 font-bold uppercase tracking-wider" style={{ color: "var(--color-gold)" }}>
-          TBD
-        </div>
-      )}
+
     </motion.div>
   )
 }
@@ -96,34 +96,115 @@ function BracketCard({
 export default function Bracket() {
   const [africaView, setAfricaView] = useState(false)
   const { data: matches } = useSWR<Match[]>("/api/matches", fetcher, { revalidateOnFocus: false })
+  const { groups } = useStandings()
 
   const rounds = useMemo(() => {
     const baseRounds = getBracketRounds()
+    const resolvedWinners: Record<string, string> = {}
+    const resolvedLosers: Record<string, string> = {}
 
-    // Tentative de matching avec les vraies données API (par phase)
-    if (matches) {
-      baseRounds.forEach(round => {
-        round.matches.forEach(bm => {
-          const apiMatch = matches.find(m => m.id.toString() === bm.id)
+    // Résout un label comme "1er Groupe A", "2e Groupe B", "3e Groupe C/D/F/G/H",
+    // "Vainqueur M73", "Perdant SF101" en code d'équipe
+    const resolveLabel = (label: string): string | undefined => {
+      if (!groups || groups.length === 0) return undefined
 
-          if (apiMatch) {
-            bm.homeTeamCode = apiMatch.homeTeam?.code
-            bm.awayTeamCode = apiMatch.awayTeam?.code
-            bm.homeScore = apiMatch.homeScore
-            bm.awayScore = apiMatch.awayScore
-            
-            // On met à jour avec les vraies données de l'API si elles existent
-            if (apiMatch.date) bm.date = apiMatch.date
-            if (apiMatch.stadium && apiMatch.stadium.name !== "Unknown Stadium") {
-              bm.stadium = apiMatch.stadium.name
-            }
-          }
-        })
-      })
+      // 1er ou 2e de groupe
+      if (label.startsWith("1er Groupe") || label.startsWith("2e Groupe")) {
+        const parts = label.split(" ")
+        const pos = parts[0] === "1er" ? 0 : 1
+        const grpLetter = parts[2] // ex: "A"
+        const group = groups.find(g => g.name === `Groupe ${grpLetter}`)
+        if (group && group.teams.length > pos && group.teams[pos].played > 0) {
+          return group.teams[pos].team.code
+        }
+        return undefined
+      }
+
+      // 3e de groupe — cas ambigu (ex: "3e Groupe C/D/F/G/H")
+      // On ne peut pas résoudre automatiquement car ça dépend du tirage FIFA
+      // On laisse l'API s'en charger ou on attend que le match soit connu
+      if (label.startsWith("3e Groupe")) {
+        return undefined
+      }
+
+      // Vainqueur d'un match précédent
+      if (label.startsWith("Vainqueur")) {
+        const ref = label
+          .replace("Vainqueur M", "")
+          .replace("Vainqueur QF", "")
+          .replace("Vainqueur SF", "")
+        return resolvedWinners[ref]
+      }
+
+      // Perdant d'une demi-finale (pour la petite finale)
+      if (label.startsWith("Perdant SF")) {
+        const ref = label.replace("Perdant SF", "")
+        return resolvedLosers[ref]
+      }
+
+      return undefined
     }
 
+    // Itérer tour par tour dans l'ordre pour que la propagation fonctionne
+    baseRounds.forEach(round => {
+      round.matches.forEach(bm => {
+        const expectedHomeCode = resolveLabel(bm.homeLabel)
+        const expectedAwayCode = resolveLabel(bm.awayLabel)
+
+        let apiMatch: Match | undefined
+        const koMatches = matches
+          ? matches.filter(m => m.phase !== "Phase de groupes" && !m.phase.startsWith("Groupe"))
+          : []
+
+        // Chercher dans les matchs de l'API par correspondance d'équipes (pas par ID)
+        if (expectedHomeCode && expectedAwayCode) {
+          apiMatch = koMatches.find(m =>
+            (m.homeTeam.code === expectedHomeCode && m.awayTeam.code === expectedAwayCode) ||
+            (m.homeTeam.code === expectedAwayCode && m.awayTeam.code === expectedHomeCode)
+          )
+        }
+
+        // Si un seul côté est résolu (ex: 3e de groupe inconnu), chercher par l'équipe connue
+        if (!apiMatch && koMatches.length > 0) {
+          const knownCode = expectedHomeCode || expectedAwayCode
+          if (knownCode && (!expectedHomeCode || !expectedAwayCode)) {
+            apiMatch = koMatches.find(m =>
+              m.homeTeam.code === knownCode || m.awayTeam.code === knownCode
+            )
+          }
+        }
+
+        if (apiMatch) {
+          bm.homeTeamCode = apiMatch.homeTeam.code
+          bm.awayTeamCode = apiMatch.awayTeam.code
+          bm.homeScore = apiMatch.homeScore
+          bm.awayScore = apiMatch.awayScore
+
+          if (apiMatch.date) bm.date = apiMatch.date
+          if (apiMatch.stadium && apiMatch.stadium.name !== "Unknown Stadium") {
+            bm.stadium = apiMatch.stadium.name
+          }
+
+          // Propager le vainqueur/perdant si le match est terminé
+          if (apiMatch.status === "finished" && apiMatch.homeScore != null && apiMatch.awayScore != null) {
+            if (apiMatch.homeScore > apiMatch.awayScore) {
+              resolvedWinners[bm.matchNumber.toString()] = apiMatch.homeTeam.code
+              resolvedLosers[bm.matchNumber.toString()] = apiMatch.awayTeam.code
+            } else if (apiMatch.awayScore > apiMatch.homeScore) {
+              resolvedWinners[bm.matchNumber.toString()] = apiMatch.awayTeam.code
+              resolvedLosers[bm.matchNumber.toString()] = apiMatch.homeTeam.code
+            }
+          }
+        } else {
+          // Pas de match trouvé dans l'API → on affiche quand même les équipes résolues
+          if (expectedHomeCode) bm.homeTeamCode = expectedHomeCode
+          if (expectedAwayCode) bm.awayTeamCode = expectedAwayCode
+        }
+      })
+    })
+
     return baseRounds
-  }, [matches])
+  }, [matches, groups])
 
   return (
     <div>

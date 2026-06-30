@@ -79,6 +79,8 @@ export default function GroupTable({ group, highlightTeam, detailed = false }: P
                     borderLeft: isHighlighted
                       ? "2px solid var(--color-primary-light)"
                       : "2px solid transparent",
+                    opacity: standing.team.isEliminated ? 0.5 : 1,
+                    filter: standing.team.isEliminated ? "grayscale(100%)" : "none",
                   }}
                 >
                   <td className="px-3 py-2" style={{ color: isQualified ? "var(--color-primary-light)" : "var(--color-text-muted)" }}>

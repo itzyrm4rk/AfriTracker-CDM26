@@ -29,10 +29,8 @@ export default function StatsDashboard({ matches, scorers }: Props) {
   const stats = useMemo(() => {
     let totalGoals = 0
     let totalMatchesPlayed = 0
-    // L'API ne fournit pas les cartons globalement sans requêter chaque match un par un
-    // Nous les laissons à "-" pour ne pas afficher de fausses données.
-    let yellowCards: string | number = "-"
-    let redCards: string | number = "-"
+    let yellowCards = 0
+    let redCards = 0
 
     matches.forEach(m => {
       if (m.status === "finished" || m.status === "live") {
@@ -47,10 +45,39 @@ export default function StatsDashboard({ matches, scorers }: Props) {
           if (homeIsAf) totalGoals += (m.homeScore || 0)
           if (awayIsAf) totalGoals += (m.awayScore || 0)
         }
+
+        // Calcul des cartons
+        if (m.events && Array.isArray(m.events)) {
+          m.events.forEach(event => {
+            if (event.type === "yellow_card" || event.type === "red_card") {
+              // Vérifier si l'équipe associée à l'événement est concernée par le filtre
+              let countCard = false
+              
+              if (!filterAfrica) {
+                countCard = true
+              } else {
+                // event.team contient le nom de l'équipe, on vérifie si c'est homeTeam ou awayTeam
+                if (event.team === m.homeTeam.name && homeIsAf) countCard = true
+                if (event.team === m.awayTeam.name && awayIsAf) countCard = true
+              }
+
+              if (countCard) {
+                if (event.type === "yellow_card") yellowCards++
+                if (event.type === "red_card") redCards++
+              }
+            }
+          })
+        }
       }
     })
 
-    return { totalGoals, totalMatchesPlayed, yellowCards, redCards }
+    // Si aucune carte n'est trouvée (ex: si l'API ne renvoie pas les événements), afficher "-"
+    return { 
+      totalGoals, 
+      totalMatchesPlayed, 
+      yellowCards: yellowCards > 0 ? yellowCards : "-", 
+      redCards: redCards > 0 ? redCards : "-" 
+    }
   }, [matches, filterAfrica])
 
   // -- Filter and Paginate scorers --

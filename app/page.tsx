@@ -19,7 +19,7 @@ export default function Dashboard() {
   const { upcomingMatches, isLoading: isLoadingUpcoming } = useUpcomingMatches()
   const { groups, isLoading: isLoadingStandings } = useStandings()
   const { allFollowedTeams, africanTeams } = useTeams()
-  const { allAfricaEliminated, hasExtraTeams, championTeam, finalMatch } = useCompetitionState()
+  const { allAfricaEliminated, hasExtraTeams, championTeam, finalMatch, africanStats, championStats } = useCompetitionState()
   const [overlayDismissed, setOverlayDismissed] = useState(false)
 
   const africanLiveMatches = useMemo(() => {
@@ -46,11 +46,12 @@ export default function Dashboard() {
 
   return (
     <div className="space-y-6">
-      {championTeam && <ChampionScreen team={championTeam} />}
+      {championTeam && <ChampionScreen team={championTeam} championStats={championStats} africanStats={africanStats} />}
 
       {!championTeam && allAfricaEliminated && !overlayDismissed && (
         <AllAfricaEliminatedOverlay
           hasExtraTeams={hasExtraTeams}
+          africanStats={africanStats}
           onClose={() => setOverlayDismissed(true)}
         />
       )}

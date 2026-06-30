@@ -9,7 +9,7 @@ const BASE_URL = process.env.WORLDCUP_API_BASE || "https://wcup2026.org/api/data
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
 /** Construit un objet Team de notre format à partir d'un TeamData */
-function buildTeamFromData(localTeam: TeamData): Team {
+function buildTeamFromData(localTeam: TeamData, eliminatedCodes?: Set<string>): Team {
   return {
     id: localTeam.id,
     apiId: localTeam.apiId,
@@ -19,7 +19,7 @@ function buildTeamFromData(localTeam: TeamData): Team {
     flagUrl: localTeam.flagUrl,
     group: localTeam.group,
     isAfrican: localTeam.isAfrican,
-    isEliminated: localTeam.isEliminated,
+    isEliminated: eliminatedCodes ? eliminatedCodes.has(localTeam.code) : localTeam.isEliminated,
     eliminatedAt: localTeam.eliminatedAt,
   }
 }
@@ -37,13 +37,62 @@ function buildUnknownTeam(idOrName: string): Team {
   }
 }
 
-/** Mappe le statut de l'API vers notre MatchStatus */
 function mapStatus(statusRaw: string): MatchStatus {
   const s = (statusRaw || "").toLowerCase()
   if (s === "finished") return "finished"
   if (s === "live" || s === "in-play" || s === "playing") return "live"
   if (s === "postponed" || s === "cancelled") return "postponed"
   return "scheduled"
+}
+
+/** Calcule dynamiquement les équipes éliminées à partir des matchs */
+export function computeEliminatedTeams(matches: Match[]): Set<string> {
+  const eliminated = new Set<string>()
+  const koMatches = matches.filter(m => m.phase !== "Phase de groupes" && !m.phase.startsWith("Groupe"))
+
+  // 1. Phase de groupes : Si on connait les 32 qualifiés, on élimine les autres
+  const koParticipants = new Set<string>()
+  koMatches.forEach(m => {
+    if (m.homeTeam.code !== "UNK") koParticipants.add(m.homeTeam.code)
+    if (m.awayTeam.code !== "UNK") koParticipants.add(m.awayTeam.code)
+  })
+  if (koParticipants.size >= 32) {
+    ALL_TEAMS.forEach(team => {
+      if (!koParticipants.has(team.code)) eliminated.add(team.code)
+    })
+  }
+
+  // 2. Phase finale : Déduction classique + intelligente
+  koMatches.forEach(m => {
+    if (m.status !== "finished") return
+    
+    // Voie rapide : Score classique
+    if (m.homeScore != null && m.awayScore != null && m.homeScore !== m.awayScore) {
+      const loserCode = m.homeScore > m.awayScore ? m.awayTeam.code : m.homeTeam.code
+      eliminated.add(loserCode)
+    } 
+    // Voie intelligente : Égalité (Tirs au but non renseignés)
+    else if (m.homeScore === m.awayScore) {
+      if (m.phase.includes("Demi")) {
+        // En DF, les deux équipes jouent encore (Finale ou Petite Finale)
+        // On cherche qui est en Finale pour déduire le vainqueur
+        const homeInFinal = koMatches.some(fm => fm.phase === "Finale" && (fm.homeTeam.code === m.homeTeam.code || fm.awayTeam.code === m.homeTeam.code))
+        const awayInFinal = koMatches.some(fm => fm.phase === "Finale" && (fm.homeTeam.code === m.awayTeam.code || fm.awayTeam.code === m.awayTeam.code))
+        
+        if (homeInFinal && !awayInFinal) eliminated.add(m.awayTeam.code)
+        if (awayInFinal && !homeInFinal) eliminated.add(m.homeTeam.code)
+      } else {
+        // Look-ahead : l'équipe qui apparait dans un match ultérieur a gagné
+        const homeHasFutureMatch = koMatches.some(fm => fm.date > m.date && (fm.homeTeam.code === m.homeTeam.code || fm.awayTeam.code === m.homeTeam.code))
+        const awayHasFutureMatch = koMatches.some(fm => fm.date > m.date && (fm.homeTeam.code === m.awayTeam.code || fm.awayTeam.code === m.awayTeam.code))
+        
+        if (homeHasFutureMatch && !awayHasFutureMatch) eliminated.add(m.awayTeam.code)
+        if (awayHasFutureMatch && !homeHasFutureMatch) eliminated.add(m.homeTeam.code)
+      }
+    }
+  })
+
+  return eliminated
 }
 
 // ─── Fetch principal ─────────────────────────────────────────────────────────
@@ -96,12 +145,13 @@ async function apiFetch<T>(action: string, id?: number): Promise<T | null> {
 // ─── Teams ───────────────────────────────────────────────────────────────────
 
 export async function fetchAllAPITeams(): Promise<Team[]> {
-  // Plus besoin de fetch sur l'API car on gère les équipes localement
-  return ALL_TEAMS.map(buildTeamFromData)
+  const matches = await fetchAllMatches()
+  const eliminatedCodes = computeEliminatedTeams(matches)
+  return ALL_TEAMS.map(t => buildTeamFromData(t, eliminatedCodes))
 }
 
-function buildFallbackTeams(): Team[] {
-  return ALL_TEAMS.map(buildTeamFromData)
+function buildFallbackTeams(eliminatedCodes?: Set<string>): Team[] {
+  return ALL_TEAMS.map(t => buildTeamFromData(t, eliminatedCodes))
 }
 
 // ─── Matches ─────────────────────────────────────────────────────────────────
@@ -128,7 +178,17 @@ export async function fetchAllMatches(): Promise<Match[]> {
 
   // Si on lit le fallback (ancien format), on utilise l'ancien mapping (simplifié ici).
   // Si c'est le nouveau format, on le map.
-  return games.map((g: any) => g.home_team_id ? mapOldRawGame(g) : mapRawGame(g)).filter(Boolean) as Match[]
+  const mappedMatches = games.map((g: any) => g.home_team_id ? mapOldRawGame(g) : mapRawGame(g)).filter(Boolean) as Match[]
+
+  const eliminatedCodes = computeEliminatedTeams(mappedMatches)
+  
+  // Appliquer le statut d'élimination aux équipes dans les matchs
+  mappedMatches.forEach(m => {
+    if (eliminatedCodes.has(m.homeTeam.code)) m.homeTeam.isEliminated = true
+    if (eliminatedCodes.has(m.awayTeam.code)) m.awayTeam.isEliminated = true
+  })
+
+  return mappedMatches
 }
 
 export async function fetchMatchDetails(id: number): Promise<Match | null> {
@@ -378,26 +438,29 @@ export async function fetchScorers(): Promise<Scorer[]> {
 
 export async function fetchStandings(): Promise<Group[]> {
   const res = await apiFetch<{ standings: Record<string, any[]> }>("standings")
-  if (!res || !res.standings) return buildFallbackStandings()
+  const matches = await fetchAllMatches()
+  const eliminatedCodes = computeEliminatedTeams(matches)
+
+  if (!res || !res.standings) return buildFallbackStandings(eliminatedCodes)
 
   const groups: Group[] = []
   
   for (const [groupName, teams] of Object.entries(res.standings)) {
-    const mapped = mapRawGroup(groupName, teams)
+    const mapped = mapRawGroup(groupName, teams, eliminatedCodes)
     if (mapped) groups.push(mapped)
   }
   
   return groups
 }
 
-function mapRawGroup(groupName: string, teamsArray: any[]): Group | null {
+function mapRawGroup(groupName: string, teamsArray: any[], eliminatedCodes?: Set<string>): Group | null {
   try {
     const name = groupName.replace("Group", "Groupe").trim()
     const teams: Standing[] = (teamsArray || []).map((s: any, i: number) => {
 
       // The new API uses "team" for the English name
       const localData = getTeamByName(s.team)
-      const team = localData ? buildTeamFromData(localData) : buildUnknownTeam(s.team)
+      const team = localData ? buildTeamFromData(localData, eliminatedCodes) : buildUnknownTeam(s.team)
 
       return {
         team,
@@ -423,7 +486,7 @@ function mapRawGroup(groupName: string, teamsArray: any[]): Group | null {
   }
 }
 
-function buildFallbackStandings(): Group[] {
+function buildFallbackStandings(eliminatedCodes?: Set<string>): Group[] {
   // Groupes de secours basés sur nos données statiques
   const groups: Record<string, Group> = {}
 
@@ -432,7 +495,7 @@ function buildFallbackStandings(): Group[] {
       groups[t.group] = { name: t.group, teams: [], isDataPending: true }
     }
     groups[t.group].teams.push({
-      team: buildTeamFromData(t),
+      team: buildTeamFromData(t, eliminatedCodes),
       played: 0, won: 0, drawn: 0, lost: 0,
       goalsFor: 0, goalsAgainst: 0, goalDifference: 0,
       points: 0, position: groups[t.group].teams.length + 1,

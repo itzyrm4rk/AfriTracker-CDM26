@@ -71,11 +71,12 @@ export function getBracketRounds(): BracketRound[] {
   ]
 
   return [
-    { id: "r32", name: "1/32 de Finale", matches: r32 },
-    { id: "r16", name: "1/16 de Finale", matches: r16 },
-    { id: "qf", name: "Quarts de Finale", matches: quarterFinals },
-    { id: "sf", name: "Demi-finales", matches: semiFinals },
-    { id: "finals", name: "Finales", matches: [...finals] }, // Combine third and final for rendering
+    { id: "r32", name: "1/16 de finale", matches: r32 },
+    { id: "r16", name: "Huitièmes de finale", matches: r16 },
+    { id: "qf", name: "Quarts de finale", matches: quarterFinals },
+    { id: "sf", name: "Demi-finale", matches: semiFinals },
+    { id: "third", name: "Petite finale", matches: [finals[0]] },
+    { id: "final", name: "Finale", matches: [finals[1]] },
   ]
 }
 
