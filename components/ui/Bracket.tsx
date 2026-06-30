@@ -6,7 +6,7 @@ import { motion } from "framer-motion"
 import { Eye, EyeOff } from "lucide-react"
 import { getBracketRounds, isAfricanTeam, type BracketMatch } from "@/lib/bracket-data"
 import { getTeamByCode } from "@/data/teams"
-import type { Match } from "@/types"
+import type { Match, Group } from "@/types"
 import { useStandings } from "@/hooks/useStandings"
 
 const fetcher = (url: string) => fetch(url).then(r => r.json())
@@ -20,15 +20,47 @@ function formatDate(d: string) {
   }).format(new Date(d))
 }
 
+/** Résout un label statique du bracket en code d'équipe FIFA */
+function resolveLabel(label: string, groups: Group[]): string | undefined {
+  if (!groups || groups.length === 0) return undefined
+
+  // 1er ou 2e de groupe
+  if (label.startsWith("1er Groupe") || label.startsWith("2e Groupe")) {
+    const parts = label.split(" ")
+    const pos = parts[0] === "1er" ? 0 : 1
+    const grpLetter = parts[2] // ex: "A"
+    const group = groups.find(g => g.name === `Groupe ${grpLetter}`)
+    if (group && group.teams.length > pos && group.teams[pos].played > 0) {
+      return group.teams[pos].team.code
+    }
+    return undefined
+  }
+
+  // 3e de groupe — cas ambigu, on laisse l'API s'en charger
+  if (label.startsWith("3e Groupe")) {
+    return undefined
+  }
+
+  // Vainqueur / Perdant — on ne propage plus manuellement,
+  // c'est l'API qui gère les tours suivants
+  return undefined
+}
+
 function BracketCard({
   match,
   africaView,
+  eliminatedCodes,
 }: {
   match: BracketMatch
   africaView: boolean
+  eliminatedCodes: Set<string>
 }) {
   const homeTeam = match.homeTeamCode ? getTeamByCode(match.homeTeamCode) : null
   const awayTeam = match.awayTeamCode ? getTeamByCode(match.awayTeamCode) : null
+
+  // Utiliser les eliminatedCodes dynamiques du bracket (pas les données statiques)
+  const homeEliminated = match.homeTeamCode ? eliminatedCodes.has(match.homeTeamCode) : false
+  const awayEliminated = match.awayTeamCode ? eliminatedCodes.has(match.awayTeamCode) : false
 
   const hasAfricanTeam =
     (match.homeTeamCode && isAfricanTeam(match.homeTeamCode)) ||
@@ -58,11 +90,14 @@ function BracketCard({
       <div
         className="flex items-center justify-between px-2 py-1.5 rounded-lg mb-1"
         style={{
-          background: homeTeam?.isEliminated ? "rgba(55,65,81,0.3)" : "var(--color-surface-2)",
-          textDecoration: homeTeam?.isEliminated ? "line-through" : undefined,
+          background: homeEliminated ? "rgba(55,65,81,0.3)" : "var(--color-surface-2)",
+          opacity: homeEliminated ? 0.5 : 1,
         }}
       >
-        <span className="flex items-center gap-2 text-xs font-medium truncate">
+        <span
+          className="flex items-center gap-2 text-xs font-medium truncate"
+          style={{ textDecoration: homeEliminated ? "line-through" : undefined }}
+        >
           <span className="text-base">{homeTeam?.flag ?? "🏳️"}</span>
           <span className="truncate max-w-[110px]">{homeTeam?.name ?? match.homeLabel}</span>
         </span>
@@ -75,11 +110,14 @@ function BracketCard({
       <div
         className="flex items-center justify-between px-2 py-1.5 rounded-lg"
         style={{
-          background: awayTeam?.isEliminated ? "rgba(55,65,81,0.3)" : "var(--color-surface-2)",
-          textDecoration: awayTeam?.isEliminated ? "line-through" : undefined,
+          background: awayEliminated ? "rgba(55,65,81,0.3)" : "var(--color-surface-2)",
+          opacity: awayEliminated ? 0.5 : 1,
         }}
       >
-        <span className="flex items-center gap-2 text-xs font-medium truncate">
+        <span
+          className="flex items-center gap-2 text-xs font-medium truncate"
+          style={{ textDecoration: awayEliminated ? "line-through" : undefined }}
+        >
           <span className="text-base">{awayTeam?.flag ?? "🏳️"}</span>
           <span className="truncate max-w-[110px]">{awayTeam?.name ?? match.awayLabel}</span>
         </span>
@@ -87,7 +125,6 @@ function BracketCard({
           <span className="font-bold text-sm">{match.awayScore}</span>
         )}
       </div>
-
 
     </motion.div>
   )
@@ -98,113 +135,84 @@ export default function Bracket() {
   const { data: matches } = useSWR<Match[]>("/api/matches", fetcher, { revalidateOnFocus: false })
   const { groups } = useStandings()
 
-  const rounds = useMemo(() => {
+  const resolvedData = useMemo(() => {
     const baseRounds = getBracketRounds()
-    const resolvedWinners: Record<string, string> = {}
-    const resolvedLosers: Record<string, string> = {}
+    const usedApiMatchIds = new Set<string>()
+    const eliminatedCodes = new Set<string>()
 
-    // Résout un label comme "1er Groupe A", "2e Groupe B", "3e Groupe C/D/F/G/H",
-    // "Vainqueur M73", "Perdant SF101" en code d'équipe
-    const resolveLabel = (label: string): string | undefined => {
-      if (!groups || groups.length === 0) return undefined
+    // Séparer les matchs KO de l'API
+    const koMatches = matches
+      ? matches.filter(m => m.phase !== "Phase de groupes" && !m.phase.startsWith("Groupe"))
+      : []
 
-      // 1er ou 2e de groupe
-      if (label.startsWith("1er Groupe") || label.startsWith("2e Groupe")) {
-        const parts = label.split(" ")
-        const pos = parts[0] === "1er" ? 0 : 1
-        const grpLetter = parts[2] // ex: "A"
-        const group = groups.find(g => g.name === `Groupe ${grpLetter}`)
-        if (group && group.teams.length > pos && group.teams[pos].played > 0) {
-          return group.teams[pos].team.code
-        }
-        return undefined
-      }
-
-      // 3e de groupe — cas ambigu (ex: "3e Groupe C/D/F/G/H")
-      // On ne peut pas résoudre automatiquement car ça dépend du tirage FIFA
-      // On laisse l'API s'en charger ou on attend que le match soit connu
-      if (label.startsWith("3e Groupe")) {
-        return undefined
-      }
-
-      // Vainqueur d'un match précédent
-      if (label.startsWith("Vainqueur")) {
-        const ref = label
-          .replace("Vainqueur M", "")
-          .replace("Vainqueur QF", "")
-          .replace("Vainqueur SF", "")
-        return resolvedWinners[ref]
-      }
-
-      // Perdant d'une demi-finale (pour la petite finale)
-      if (label.startsWith("Perdant SF")) {
-        const ref = label.replace("Perdant SF", "")
-        return resolvedLosers[ref]
-      }
-
-      return undefined
-    }
-
-    // Itérer tour par tour dans l'ordre pour que la propagation fonctionne
+    // Itérer tour par tour dans l'ordre
     baseRounds.forEach(round => {
       round.matches.forEach(bm => {
-        const expectedHomeCode = resolveLabel(bm.homeLabel)
-        const expectedAwayCode = resolveLabel(bm.awayLabel)
+        const expectedHomeCode = resolveLabel(bm.homeLabel, groups || [])
+        const expectedAwayCode = resolveLabel(bm.awayLabel, groups || [])
 
         let apiMatch: Match | undefined
-        const koMatches = matches
-          ? matches.filter(m => m.phase !== "Phase de groupes" && !m.phase.startsWith("Groupe"))
-          : []
 
-        // Chercher dans les matchs de l'API par correspondance d'équipes (pas par ID)
-        if (expectedHomeCode && expectedAwayCode) {
+        // 1. Chercher par matchNumber direct (le plus fiable)
+        apiMatch = koMatches.find(m => {
+          return m.matchNumber === bm.matchNumber && !usedApiMatchIds.has(m.id.toString())
+        })
+
+        // 2. Fallback : chercher par paire d'équipes (les deux doivent correspondre)
+        if (!apiMatch && expectedHomeCode && expectedAwayCode) {
           apiMatch = koMatches.find(m =>
-            (m.homeTeam.code === expectedHomeCode && m.awayTeam.code === expectedAwayCode) ||
-            (m.homeTeam.code === expectedAwayCode && m.awayTeam.code === expectedHomeCode)
+            !usedApiMatchIds.has(m.id.toString()) &&
+            ((m.homeTeam.code === expectedHomeCode && m.awayTeam.code === expectedAwayCode) ||
+             (m.homeTeam.code === expectedAwayCode && m.awayTeam.code === expectedHomeCode))
           )
         }
 
-        // Si un seul côté est résolu (ex: 3e de groupe inconnu), chercher par l'équipe connue
-        if (!apiMatch && koMatches.length > 0) {
+        // 3. Fallback prudent : chercher par UNE seule équipe connue
+        //    SEULEMENT pour les 1/16 de finale (r32) où les 3e de groupe sont inconnus
+        if (!apiMatch && bm.round === "r32" && koMatches.length > 0) {
           const knownCode = expectedHomeCode || expectedAwayCode
           if (knownCode && (!expectedHomeCode || !expectedAwayCode)) {
             apiMatch = koMatches.find(m =>
-              m.homeTeam.code === knownCode || m.awayTeam.code === knownCode
+              !usedApiMatchIds.has(m.id.toString()) &&
+              (m.homeTeam.code === knownCode || m.awayTeam.code === knownCode)
             )
           }
         }
 
         if (apiMatch) {
+          usedApiMatchIds.add(apiMatch.id.toString())
           bm.homeTeamCode = apiMatch.homeTeam.code
           bm.awayTeamCode = apiMatch.awayTeam.code
           bm.homeScore = apiMatch.homeScore
           bm.awayScore = apiMatch.awayScore
+          bm.status = apiMatch.status
 
           if (apiMatch.date) bm.date = apiMatch.date
           if (apiMatch.stadium && apiMatch.stadium.name !== "Unknown Stadium") {
             bm.stadium = apiMatch.stadium.name
           }
 
-          // Propager le vainqueur/perdant si le match est terminé
+          // Collecter les éliminés pour ce bracket
           if (apiMatch.status === "finished" && apiMatch.homeScore != null && apiMatch.awayScore != null) {
             if (apiMatch.homeScore > apiMatch.awayScore) {
-              resolvedWinners[bm.matchNumber.toString()] = apiMatch.homeTeam.code
-              resolvedLosers[bm.matchNumber.toString()] = apiMatch.awayTeam.code
+              eliminatedCodes.add(apiMatch.awayTeam.code)
             } else if (apiMatch.awayScore > apiMatch.homeScore) {
-              resolvedWinners[bm.matchNumber.toString()] = apiMatch.awayTeam.code
-              resolvedLosers[bm.matchNumber.toString()] = apiMatch.homeTeam.code
+              eliminatedCodes.add(apiMatch.homeTeam.code)
             }
           }
         } else {
-          // Pas de match trouvé dans l'API → on affiche quand même les équipes résolues
+          // Pas de match trouvé dans l'API → on affiche les équipes résolues (sans score)
           if (expectedHomeCode) bm.homeTeamCode = expectedHomeCode
           if (expectedAwayCode) bm.awayTeamCode = expectedAwayCode
         }
       })
     })
 
-    return baseRounds
+    return { rounds: baseRounds, eliminatedCodes }
   }, [matches, groups])
+
+  const rounds = resolvedData.rounds
+  const bracketEliminatedCodes = resolvedData.eliminatedCodes
 
   return (
     <div>
@@ -236,7 +244,12 @@ export default function Bracket() {
             </h3>
             <div className="flex flex-col gap-4 justify-around flex-1">
               {round.matches.map(match => (
-                <BracketCard key={match.id} match={match} africaView={africaView} />
+                <BracketCard
+                  key={match.id}
+                  match={match}
+                  africaView={africaView}
+                  eliminatedCodes={bracketEliminatedCodes}
+                />
               ))}
             </div>
           </div>

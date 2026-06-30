@@ -318,7 +318,8 @@ function mapRawGame(g: any): Match | null {
     }
 
     return {
-      id: parseInt(g.id) || Math.random(),
+      id: parseInt(g.id) || parseInt(g.num) || Math.random(),
+      matchNumber: parseInt(g.num) || undefined,
       homeTeam,
       awayTeam,
       homeScore: parseScore(g.score, 0),
@@ -382,7 +383,8 @@ function mapOldRawGame(g: any): Match | null {
     const awayScore = g.finished === "TRUE" ? (parseInt(g.away_score) || 0) : null
 
     return {
-      id: parseInt(g.id) || Math.random(),
+      id: parseInt(g.id) || parseInt(g.num) || Math.random(),
+      matchNumber: parseInt(g.num) || undefined,
       homeTeam,
       awayTeam,
       homeScore,

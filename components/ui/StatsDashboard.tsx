@@ -47,16 +47,16 @@ export default function StatsDashboard({ matches, scorers }: Props) {
         }
 
         // Calcul des cartons
+        let matchHasCardEvents = false
         if (m.events && Array.isArray(m.events)) {
           m.events.forEach(event => {
             if (event.type === "yellow_card" || event.type === "red_card") {
-              // Vérifier si l'équipe associée à l'événement est concernée par le filtre
+              matchHasCardEvents = true
               let countCard = false
               
               if (!filterAfrica) {
                 countCard = true
               } else {
-                // event.team contient le nom de l'équipe, on vérifie si c'est homeTeam ou awayTeam
                 if (event.team === m.homeTeam.name && homeIsAf) countCard = true
                 if (event.team === m.awayTeam.name && awayIsAf) countCard = true
               }
@@ -64,6 +64,28 @@ export default function StatsDashboard({ matches, scorers }: Props) {
               if (countCard) {
                 if (event.type === "yellow_card") yellowCards++
                 if (event.type === "red_card") redCards++
+              }
+            }
+          })
+        }
+
+        // Fallback: Si l'API ne renvoie pas le détail des événements mais renvoie les statistiques globales
+        if (!matchHasCardEvents && m.stats && Array.isArray(m.stats)) {
+          m.stats.forEach(stat => {
+            if (stat.keyEn === "Yellow cards" || stat.key === "Cartons jaunes" || stat.keyEn === "Yellow Cards") {
+              if (!filterAfrica) {
+                yellowCards += (stat.homeValue || 0) + (stat.awayValue || 0)
+              } else {
+                if (homeIsAf) yellowCards += (stat.homeValue || 0)
+                if (awayIsAf) yellowCards += (stat.awayValue || 0)
+              }
+            }
+            if (stat.keyEn === "Red cards" || stat.key === "Cartons rouges" || stat.keyEn === "Red Cards") {
+              if (!filterAfrica) {
+                redCards += (stat.homeValue || 0) + (stat.awayValue || 0)
+              } else {
+                if (homeIsAf) redCards += (stat.homeValue || 0)
+                if (awayIsAf) redCards += (stat.awayValue || 0)
               }
             }
           })

@@ -13,6 +13,7 @@ export interface Team {
 
 export interface Match {
   id: number
+  matchNumber?: number
   homeTeam: Team
   awayTeam: Team
   homeScore: number | null
